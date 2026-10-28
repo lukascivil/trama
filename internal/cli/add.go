@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -21,13 +22,20 @@ func newAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			nameGiven := name != ""
+			if !nameGiven {
+				name = workspace.NameFromURL(url)
+			}
+			if err := ws.CheckNew(name, url); err != nil {
+				if !nameGiven && errors.Is(err, workspace.ErrInvalidName) {
+					return fmt.Errorf("%w; choose a name with --name", err)
+				}
+				return err
+			}
 			if branch == "" {
 				if branch, err = gitx.DefaultBranch(url); err != nil {
 					return fmt.Errorf("could not read the default branch of %s: %w", url, err)
 				}
-			}
-			if name == "" {
-				name = workspace.NameFromURL(url)
 			}
 			if err := ws.AddRepo(workspace.Repo{Name: name, URL: url, Branch: branch}); err != nil {
 				return err

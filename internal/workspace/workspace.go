@@ -22,6 +22,9 @@ const FileName = "workspace.yaml"
 // ErrNotFound means no workspace.yaml exists in a directory or its parents.
 var ErrNotFound = errors.New("not inside a trama workspace: no workspace.yaml found here or in any parent directory")
 
+// ErrInvalidName means a repository name is not safe to use as a directory.
+var ErrInvalidName = errors.New("invalid repo name")
+
 var validName = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 
 // Repo is one repository of the workspace.
@@ -115,14 +118,49 @@ func (w *Workspace) Validate() error {
 }
 
 func validateRepo(r Repo) error {
-	if !validName.MatchString(r.Name) {
-		return fmt.Errorf("invalid repo name %q: use lowercase letters, digits, '.', '_' and '-', starting with a letter or digit", r.Name)
+	if err := validateName(r.Name); err != nil {
+		return err
 	}
-	if strings.TrimSpace(r.URL) == "" {
-		return fmt.Errorf("repo %s: url is empty", r.Name)
+	if err := validateURL(r.Name, r.URL); err != nil {
+		return err
 	}
-	if strings.TrimSpace(r.Branch) == "" {
-		return fmt.Errorf("repo %s: branch is empty", r.Name)
+	return validateBranch(r.Name, r.Branch)
+}
+
+func validateName(name string) error {
+	if !validName.MatchString(name) {
+		return fmt.Errorf("%w %q: use lowercase letters, digits, '.', '_' and '-', starting with a letter or digit", ErrInvalidName, name)
+	}
+	return nil
+}
+
+// validateURL rejects URLs git could read as an option.
+func validateURL(name, url string) error {
+	if strings.TrimSpace(url) == "" {
+		return fmt.Errorf("repo %s: url is empty", name)
+	}
+	if strings.HasPrefix(strings.TrimSpace(url), "-") {
+		return fmt.Errorf(`repo %s: url must not start with "-"`, name)
+	}
+	return nil
+}
+
+// validateBranch applies the parts of git's ref-name rules that matter for
+// a branch name typed into workspace.yaml.
+func validateBranch(name, branch string) error {
+	if strings.TrimSpace(branch) == "" {
+		return fmt.Errorf("repo %s: branch is empty", name)
+	}
+	bad := branch == "@" ||
+		strings.HasPrefix(branch, "-") || strings.HasPrefix(branch, "/") ||
+		strings.HasSuffix(branch, "/") || strings.HasSuffix(branch, ".") || strings.HasSuffix(branch, ".lock") ||
+		strings.Contains(branch, "..") || strings.Contains(branch, "@{") || strings.Contains(branch, "//") ||
+		strings.ContainsAny(branch, " ~^:?*[\\")
+	for _, c := range branch {
+		bad = bad || c < 0x20 || c == 0x7f
+	}
+	if bad {
+		return fmt.Errorf("repo %s: invalid branch name %q", name, branch)
 	}
 	return nil
 }
@@ -142,18 +180,33 @@ func (w *Workspace) RepoDir(name string) string {
 	return filepath.Join(w.Root, "repos", name)
 }
 
-// AddRepo appends r to the workspace. Call Save to write it.
-func (w *Workspace) AddRepo(r Repo) error {
-	if err := validateRepo(r); err != nil {
+// CheckNew reports whether a repository called name at url could be added:
+// both are valid and neither is in the workspace yet. It does no I/O.
+func (w *Workspace) CheckNew(name, url string) error {
+	if err := validateName(name); err != nil {
+		return err
+	}
+	if err := validateURL(name, url); err != nil {
 		return err
 	}
 	for _, existing := range w.Repos {
-		if existing.Name == r.Name {
-			return fmt.Errorf("repo %s already in workspace", r.Name)
+		if existing.Name == name {
+			return fmt.Errorf("repo %s already in workspace", name)
 		}
-		if gitx.SameRemote(existing.URL, r.URL) {
-			return fmt.Errorf("%s is already in the workspace as %s", r.URL, existing.Name)
+		if gitx.SameRemote(existing.URL, url) {
+			return fmt.Errorf("%s is already in the workspace as %s", url, existing.Name)
 		}
+	}
+	return nil
+}
+
+// AddRepo appends r to the workspace. Call Save to write it.
+func (w *Workspace) AddRepo(r Repo) error {
+	if err := w.CheckNew(r.Name, r.URL); err != nil {
+		return err
+	}
+	if err := validateBranch(r.Name, r.Branch); err != nil {
+		return err
 	}
 	seq, err := w.reposNode()
 	if err != nil {

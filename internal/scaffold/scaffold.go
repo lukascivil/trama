@@ -30,7 +30,8 @@ type Options struct {
 	TramaVersion string // "dev" means: do not pin the binary in mise.toml
 }
 
-// allowedEntries may exist in the target directory before Init runs.
+// allowedEntries may exist in the target directory before Init runs. A
+// .claude directory is also allowed when it has no settings.json.
 var allowedEntries = map[string]bool{".git": true, ".DS_Store": true}
 
 // files maps each created path to the template it comes from. Templates
@@ -63,7 +64,14 @@ func Init(opts Options) ([]string, error) {
 	}
 	var blocking []string
 	for _, e := range entries {
-		if !allowedEntries[e.Name()] {
+		switch {
+		case allowedEntries[e.Name()]:
+		case e.Name() == ".claude" && e.IsDir():
+			// Claude Code may already have written settings.local.json here.
+			if _, err := os.Stat(filepath.Join(dir, ".claude", "settings.json")); err == nil {
+				blocking = append(blocking, ".claude/settings.json")
+			}
+		default:
 			blocking = append(blocking, e.Name())
 		}
 	}

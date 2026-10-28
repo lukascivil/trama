@@ -1,7 +1,9 @@
 // Package gitx runs the git binary on the user's machine.
 //
-// Every command runs with GIT_TERMINAL_PROMPT=0 so a private or missing
-// remote fails fast instead of waiting for credentials. Nothing here
+// Every command runs with prompts disabled (no terminal prompt, no askpass
+// helper, ssh in batch mode unless the user configured ssh) so a private
+// or missing remote fails fast instead of waiting for credentials. URLs are
+// always passed after "--" so they are never read as options. Nothing here
 // discards local work: there is no reset, clean, stash or forced checkout.
 package gitx
 
@@ -18,10 +20,31 @@ import (
 // ErrDiverged means the local branch has commits origin does not have.
 var ErrDiverged = errors.New("cannot fast-forward: local branch diverged from origin")
 
+// ErrNoUpstream means origin has no branch with the requested name.
+var ErrNoUpstream = errors.New("origin has no such branch")
+
+// gitEnv is the environment of every git command run in dir.
+func gitEnv(dir string) []string {
+	env := append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=", "LC_ALL=C")
+	if os.Getenv("GIT_SSH_COMMAND") == "" && os.Getenv("GIT_SSH") == "" && !sshCommandConfigured(dir) {
+		env = append(env, "GIT_SSH_COMMAND=ssh -o BatchMode=yes")
+	}
+	return env
+}
+
+// sshCommandConfigured reports whether git config sets core.sshCommand,
+// which GIT_SSH_COMMAND would override.
+func sshCommandConfigured(dir string) bool {
+	cmd := exec.Command("git", "config", "--get", "core.sshCommand")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	return err == nil && strings.TrimSpace(string(out)) != ""
+}
+
 func run(dir string, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "LC_ALL=C")
+	cmd.Env = gitEnv(dir)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -43,13 +66,13 @@ func Init(dir, branch string) error {
 
 // Clone clones branch of url into dir.
 func Clone(url, branch, dir string) error {
-	_, err := run("", "clone", "-q", "--branch", branch, url, dir)
+	_, err := run("", "clone", "-q", "--branch", branch, "--", url, dir)
 	return err
 }
 
 // DefaultBranch asks the remote which branch its HEAD points to.
 func DefaultBranch(url string) (string, error) {
-	out, err := run("", "ls-remote", "--symref", url, "HEAD")
+	out, err := run("", "ls-remote", "--symref", "--", url, "HEAD")
 	if err != nil {
 		return "", err
 	}
@@ -83,9 +106,10 @@ func (r Repo) IsRepo() bool {
 	return err == nil && out == ""
 }
 
-// OriginURL returns the URL of the origin remote.
+// OriginURL returns the URL of the origin remote as configured, before any
+// url.<base>.insteadOf rewriting, so it compares with workspace.yaml.
 func (r Repo) OriginURL() (string, error) {
-	return run(r.Dir, "remote", "get-url", "origin")
+	return run(r.Dir, "config", "--get", "remote.origin.url")
 }
 
 // Fetch updates the remote-tracking refs of origin.
@@ -121,6 +145,9 @@ func (r Repo) IsClean() (bool, error) {
 // not possible.
 func (r Repo) FastForward(branch string) (bool, error) {
 	upstream := "origin/" + branch
+	if _, err := r.RevParse(upstream); err != nil {
+		return false, fmt.Errorf("%w: %s", ErrNoUpstream, upstream)
+	}
 	before, err := r.RevParse("HEAD")
 	if err != nil {
 		return false, err

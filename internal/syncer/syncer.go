@@ -83,6 +83,9 @@ func syncRepo(ws *workspace.Workspace, r workspace.Repo) (Outcome, string) {
 	if err := repo.Fetch(); err != nil {
 		return Failed, err.Error()
 	}
+	if _, err := repo.RevParse("origin/" + r.Branch); err != nil {
+		return Failed, missingUpstream(r)
+	}
 	branch, err := repo.CurrentBranch()
 	if err != nil {
 		return Failed, err.Error()
@@ -121,6 +124,16 @@ func syncRepo(ws *workspace.Workspace, r workspace.Repo) (Outcome, string) {
 		return Failed, err.Error()
 	}
 	return Updated, short(before) + ".." + short(after)
+}
+
+// missingUpstream explains that the main branch is gone from origin and,
+// when the remote says so, which branch replaced it.
+func missingUpstream(r workspace.Repo) string {
+	detail := fmt.Sprintf("origin/%s no longer exists", r.Branch)
+	if def, err := gitx.DefaultBranch(r.URL); err == nil && def != r.Branch {
+		return detail + fmt.Sprintf("; the remote's default branch is %s: update branch in workspace.yaml", def)
+	}
+	return detail + ": check branch in workspace.yaml"
 }
 
 func short(sha string) string {
