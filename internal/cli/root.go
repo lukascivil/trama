@@ -29,6 +29,6 @@ func newRootCmd() *cobra.Command {
 		SilenceErrors: true,
 	}
 	root.PersistentFlags().StringP("dir", "C", "", "run as if trama was started in this directory")
-	root.AddCommand(newVersionCmd())
+	root.AddCommand(newVersionCmd(), newInitCmd())
 	return root
 }

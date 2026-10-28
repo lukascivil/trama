@@ -1,0 +1,10 @@
+{
+  "extraKnownMarketplaces": {
+    "trama": {
+      "source": { "source": "github", "repo": "lukascivil/trama" }
+    }
+  },
+  "enabledPlugins": {
+    "trama@trama": true
+  }
+}

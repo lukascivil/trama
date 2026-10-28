@@ -1,0 +1,25 @@
+# {{.Name}} — trama workspace
+
+This repository is a [trama](https://github.com/lukascivil/trama) workspace. It holds no application code: it lists the repositories that work together, maps how they relate, and records changes that span them.
+
+## Layout
+
+- `workspace.yaml` — the repositories in this workspace.
+- `catalog/<repo>.yaml` — one card per repository: stack, how to run it, what it provides and consumes, with `file:line` evidence.
+- `docs/graph.md` — dependency graph generated from the catalog.
+- `changes/` — one record per cross-repository change: why, plan, pull requests.
+- `repos/` — the cloned repositories (ignored by git). Each keeps its own history and rules.
+
+## Repositories
+
+<!-- trama:begin -->
+_No repositories mapped yet._
+<!-- trama:end -->
+
+## Rules for agents
+
+- Before editing a repository, read its own `AGENTS.md` or `CLAUDE.md`.
+- If a change touches anything listed under `provides`, `consumes` or `config` in the catalog, run `/trama:impact` first.
+- Changes that span repositories go through `/trama:change`.
+- Never commit code from `repos/` to this workspace repository.
+- If `trama status` reports a catalog card as stale, do not trust it: run `/trama:map` first.
