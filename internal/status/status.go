@@ -31,15 +31,16 @@ var commitSHA = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
 
 // RepoStatus describes one repository.
 type RepoStatus struct {
-	Name   string
-	Cloned bool
-	Branch string // current branch; "" when detached
-	Main   string // main branch from workspace.yaml
-	Clean  bool
-	Ahead  int // local Main vs origin/Main
-	Behind int
-	Card   Card
-	Err    string // repo could not be inspected
+	Name    string
+	Cloned  bool
+	Branch  string // current branch; "" when detached
+	Main    string // main branch from workspace.yaml
+	Clean   bool
+	Ahead   int // local Main vs origin/Main
+	Behind  int
+	Card    Card
+	Pending []string // consumes with from: unknown, as "<id> (candidates: a, b)"
+	Err     string   // repo could not be inspected
 }
 
 // Collect inspects every repository of ws. It never touches the network.
@@ -57,6 +58,9 @@ func collectRepo(ws *workspace.Workspace, r workspace.Repo) RepoStatus {
 	entry, cardErr := catalog.Load(ws.Root, r.Name)
 	if cardErr != nil {
 		errs = append(errs, "unreadable catalog card: "+cardErr.Error())
+	}
+	if entry != nil {
+		s.Pending = pending(entry)
 	}
 	cardOrUnknown := func() Card {
 		if entry == nil && cardErr == nil {
@@ -119,6 +123,21 @@ func collectRepo(ws *workspace.Workspace, r workspace.Repo) RepoStatus {
 	return s
 }
 
+func pending(c *catalog.Card) []string {
+	var out []string
+	for _, cs := range c.Consumes {
+		if cs.From != catalog.Unknown {
+			continue
+		}
+		cands := "no candidates"
+		if len(cs.Candidates) > 0 {
+			cands = "candidates: " + strings.Join(cs.Candidates, ", ")
+		}
+		out = append(out, fmt.Sprintf("%s (%s)", cs.ID, cands))
+	}
+	return out
+}
+
 // Problems lists what needs attention, most urgent first. The current
 // branch and local changes are information, not problems.
 func (s RepoStatus) Problems() []string {
@@ -137,6 +156,9 @@ func (s RepoStatus) Problems() []string {
 		p = append(p, fmt.Sprintf(`no catalog card: run "/trama:map %s"`, s.Name))
 	case CardStale:
 		p = append(p, fmt.Sprintf(`catalog card is stale: run "/trama:map %s"`, s.Name))
+	}
+	for _, pend := range s.Pending {
+		p = append(p, "pending: consumes "+pend+" from an unknown provider")
 	}
 	return p
 }
