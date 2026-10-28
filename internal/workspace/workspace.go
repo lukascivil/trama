@@ -35,11 +35,19 @@ type Repo struct {
 	Hosts  []string `yaml:"hosts,omitempty"`
 }
 
+// Link is a relation a person declared: consumer uses id from provider.
+type Link struct {
+	Consumer string `yaml:"consumer"`
+	Provider string `yaml:"provider"`
+	ID       string `yaml:"id"`
+}
+
 // Workspace is a parsed workspace.yaml.
 type Workspace struct {
 	Version int    `yaml:"version"`
 	Name    string `yaml:"name"`
 	Repos   []Repo `yaml:"repos"`
+	Links   []Link `yaml:"links,omitempty"`
 	Root    string `yaml:"-"` // absolute directory that holds workspace.yaml
 
 	// doc is the parsed document. AddRepo edits it in place so that Save
@@ -125,6 +133,20 @@ func (w *Workspace) Validate() error {
 			if gitx.SameRemote(prev.URL, r.URL) {
 				return fmt.Errorf("repos %s and %s point to the same url", prev.Name, r.Name)
 			}
+		}
+	}
+	for i, l := range w.Links {
+		if _, ok := w.Repo(l.Consumer); !ok {
+			return fmt.Errorf("links[%d]: consumer %q is not a repo of the workspace", i, l.Consumer)
+		}
+		if _, ok := w.Repo(l.Provider); !ok {
+			return fmt.Errorf("links[%d]: provider %q is not a repo of the workspace", i, l.Provider)
+		}
+		if l.Consumer == l.Provider {
+			return fmt.Errorf("links[%d]: a repo cannot link to itself", i)
+		}
+		if strings.TrimSpace(l.ID) == "" {
+			return fmt.Errorf("links[%d]: id is empty", i)
 		}
 	}
 	return nil
