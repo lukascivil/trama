@@ -15,5 +15,9 @@ if ! command -v mise >/dev/null 2>&1; then
 fi
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 version=$(sed -n 's/^[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/\1/p' "$root/.claude-plugin/plugin.json" | head -n 1)
+if [ -z "$version" ]; then
+  echo "trama: could not read the version from .claude-plugin/plugin.json" >&2
+  exit 1
+fi
 export TRAMA_SHIM_ACTIVE=1
 exec mise exec "github:lukascivil/trama@$version" -- trama "$@"

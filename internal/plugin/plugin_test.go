@@ -122,3 +122,40 @@ func TestShimRequiresMise(t *testing.T) {
 		t.Fatalf("code %d, stderr %q", code, errOut)
 	}
 }
+
+func TestShimRejectsMissingVersion(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range []string{"bin", ".claude-plugin"} {
+		if err := os.MkdirAll(filepath.Join(root, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	src, err := os.ReadFile(shim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	copied := filepath.Join(root, "bin", "trama")
+	if err := os.WriteFile(copied, src, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".claude-plugin", "plugin.json"), []byte(`{"name":"trama"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fake := t.TempDir()
+	marker := filepath.Join(t.TempDir(), "mise-called")
+	if err := os.WriteFile(filepath.Join(fake, "mise"), []byte("#!/bin/sh\ntouch '"+marker+"'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("sh", copied, "version")
+	cmd.Env = append(os.Environ(), "PATH="+fake+":/usr/bin:/bin", "TRAMA_BIN=", "TRAMA_SHIM_ACTIVE=")
+	var errOut bytes.Buffer
+	cmd.Stderr = &errOut
+	err = cmd.Run()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 || !strings.Contains(errOut.String(), "could not read the version") {
+		t.Fatalf("err = %v, stderr %q", err, errOut.String())
+	}
+	if _, statErr := os.Stat(marker); statErr == nil {
+		t.Fatal("mise was called without a version")
+	}
+}

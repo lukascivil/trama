@@ -67,7 +67,16 @@ TRAMA_BIN=/tmp/trama-dev claude --plugin-dir .
 
 ## Publicar uma versão
 
-Coloque a mesma versão em `.claude-plugin/plugin.json` e na tag (`v<versão>`) e faça push da tag. O workflow de release recusa uma tag diferente da versão do plugin e publica os binários com o GoReleaser.
+O plugin é servido a partir da branch padrão e roda o binário com a própria versão, então os binários precisam existir antes de a `main` mudar:
+
+1. Coloque a nova versão em `.claude-plugin/plugin.json` e faça o commit.
+2. Faça push da tag `v<versão>`. O workflow de release roda os testes, recusa uma tag diferente da versão do plugin e publica os binários com o GoReleaser.
+3. Quando a release existir, faça push da `main`.
+4. Atualize o pin `github:lukascivil/trama` no `mise.toml` de cada workspace.
+
+## Limitações conhecidas
+
+- `trama add` regrava o `workspace.yaml` sem as linhas em branco. Comentários e campos desconhecidos são mantidos.
 
 ## Licença
 
