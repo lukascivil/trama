@@ -71,9 +71,16 @@ type loaded struct {
 	broken map[string]bool          // cards that exist but did not parse
 }
 
-// Workspace checks every card against workspace.yaml, the other cards and
-// the clones in repos/. Findings are sorted by file, then by order found.
-func Workspace(ws *workspace.Workspace) []Finding {
+// Report is the result of checking a workspace's catalog.
+type Report struct {
+	Findings  []Finding
+	Cards     int // cards that parsed
+	Relations int // consumes with a proven provider
+}
+
+// Check checks every card against workspace.yaml, the other cards and the
+// clones in repos/. Findings are sorted by file, then by order found.
+func Check(ws *workspace.Workspace) Report {
 	var fs []Finding
 	l := load(ws, &fs)
 	for _, r := range ws.Repos {
@@ -81,9 +88,19 @@ func Workspace(ws *workspace.Workspace) []Finding {
 			checkCard(ws, r, c, report{file: cardFile(r.Name), out: &fs})
 		}
 	}
-	checkLinks(ws, l, &fs)
+	relations := checkLinks(ws, l, &fs)
 	sort.SliceStable(fs, func(i, j int) bool { return fs[i].File < fs[j].File })
-	return fs
+	return Report{Findings: fs, Cards: len(l.cards), Relations: relations}
+}
+
+// Workspace returns the findings of Check.
+func Workspace(ws *workspace.Workspace) []Finding {
+	return Check(ws).Findings
+}
+
+// Relations returns how many consumes have a proven provider.
+func Relations(ws *workspace.Workspace) int {
+	return Check(ws).Relations
 }
 
 func load(ws *workspace.Workspace, fs *[]Finding) loaded {
