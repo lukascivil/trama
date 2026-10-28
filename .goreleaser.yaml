@@ -1,0 +1,20 @@
+version: 2
+project_name: trama
+builds:
+  - main: ./cmd/trama
+    binary: trama
+    env: [CGO_ENABLED=0]
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/lukascivil/trama/internal/cli.version={{ .Version }}
+archives:
+  - formats: [tar.gz]
+checksum:
+  name_template: checksums.txt
+changelog:
+  use: github
+release:
+  github:
+    owner: lukascivil
+    name: trama
