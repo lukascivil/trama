@@ -1,0 +1,10 @@
+{
+  "name": "trama",
+  "version": "0.0.1",
+  "description": "Local meta-harness: map, run and change many repositories as one workspace.",
+  "author": { "name": "lukascivil" },
+  "homepage": "https://github.com/lukascivil/trama",
+  "repository": "https://github.com/lukascivil/trama",
+  "license": "MIT",
+  "keywords": ["polyrepo", "meta-repo", "workspace", "dependencies"]
+}

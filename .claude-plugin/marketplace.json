@@ -1,0 +1,14 @@
+{
+  "name": "trama",
+  "description": "The trama plugin: a local meta-harness for many repositories.",
+  "owner": {
+    "name": "lukascivil"
+  },
+  "plugins": [
+    {
+      "name": "trama",
+      "source": "./",
+      "description": "Local meta-harness: map, run and change many repositories as one workspace."
+    }
+  ]
+}

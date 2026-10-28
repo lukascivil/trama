@@ -1,0 +1,19 @@
+#!/bin/sh
+# Runs the trama binary whose version matches this plugin.
+# TRAMA_BIN points to another binary (local development).
+set -eu
+if [ -n "${TRAMA_BIN:-}" ]; then
+  exec "$TRAMA_BIN" "$@"
+fi
+if [ -n "${TRAMA_SHIM_ACTIVE:-}" ]; then
+  echo "trama: mise did not provide the trama binary (github:lukascivil/trama)" >&2
+  exit 127
+fi
+if ! command -v mise >/dev/null 2>&1; then
+  echo "trama: mise is required (https://mise.jdx.dev)" >&2
+  exit 127
+fi
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+version=$(sed -n 's/^[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/\1/p' "$root/.claude-plugin/plugin.json" | head -n 1)
+export TRAMA_SHIM_ACTIVE=1
+exec mise exec "github:lukascivil/trama@$version" -- trama "$@"
