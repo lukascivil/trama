@@ -14,6 +14,8 @@ import (
 	"strings"
 	"text/template"
 
+	"go.yaml.in/yaml/v3"
+
 	"github.com/lukascivil/trama/internal/gitx"
 )
 
@@ -25,7 +27,7 @@ var ErrNotEmpty = errors.New("directory is not empty")
 
 // Options configures Init.
 type Options struct {
-	Dir          string // target directory; must exist
+	Dir          string // target directory; created when missing
 	Name         string // workspace name; default filepath.Base(Dir)
 	TramaVersion string // "dev" means: do not pin the binary in mise.toml
 }
@@ -56,6 +58,9 @@ var plainScalar = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 ._-]*$`)
 func Init(opts Options) ([]string, error) {
 	dir, err := filepath.Abs(opts.Dir)
 	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
 	entries, err := os.ReadDir(dir)
@@ -140,9 +145,11 @@ func render(src string, data any) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// yamlScalar returns s as a YAML scalar, quoting it unless it is plainly safe.
+// yamlScalar returns s as a YAML scalar, quoting it unless it is plainly safe
+// and reads back as the same string (so "null", "true" or "123" get quotes).
 func yamlScalar(s string) string {
-	if plainScalar.MatchString(s) && !strings.HasSuffix(s, " ") {
+	var back any
+	if plainScalar.MatchString(s) && !strings.HasSuffix(s, " ") && yaml.Unmarshal([]byte(s), &back) == nil && back == s {
 		return s
 	}
 	quoted, _ := json.Marshal(s)

@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -17,11 +18,15 @@ func newAddCmd() *cobra.Command {
 		Short: "Add a repository to workspace.yaml (does not clone it)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			url := args[0]
 			ws, err := loadWorkspace(cmd)
 			if err != nil {
 				return err
 			}
+			cwd, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+			url := workspace.LocalURL(args[0], cwd)
 			nameGiven := name != ""
 			if !nameGiven {
 				name = workspace.NameFromURL(url)

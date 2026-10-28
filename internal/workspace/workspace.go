@@ -48,14 +48,15 @@ type Workspace struct {
 }
 
 // Find returns the closest directory, starting at start and walking up,
-// that contains workspace.yaml.
+// that contains a trama workspace.yaml. A workspace.yaml without a top-level
+// "version" key belongs to another tool and is skipped.
 func Find(start string) (string, error) {
 	dir, err := filepath.Abs(start)
 	if err != nil {
 		return "", err
 	}
 	for {
-		if _, err := os.Stat(filepath.Join(dir, FileName)); err == nil {
+		if data, err := os.ReadFile(filepath.Join(dir, FileName)); err == nil && isTramaFile(data) {
 			return dir, nil
 		}
 		parent := filepath.Dir(dir)
@@ -64,6 +65,18 @@ func Find(start string) (string, error) {
 		}
 		dir = parent
 	}
+}
+
+// isTramaFile reports whether a workspace.yaml looks like trama's: it has a
+// top-level "version" key. Unparsable files count as trama's, so Load can
+// report the error instead of the search silently walking past it.
+func isTramaFile(data []byte) bool {
+	var top map[string]any
+	if err := yaml.Unmarshal(data, &top); err != nil {
+		return true
+	}
+	_, ok := top["version"]
+	return ok
 }
 
 // Load parses root/workspace.yaml and validates it.
@@ -277,4 +290,25 @@ func NameFromURL(url string) string {
 		u = u[i+1:]
 	}
 	return strings.ToLower(strings.TrimSuffix(u, ".git"))
+}
+
+// LocalURL returns url as an absolute path when it is a local path, so the
+// workspace means the same repository from any directory. Remote URLs
+// ("scheme://..." or scp-like "host:path") and values starting with "-"
+// (which validation rejects) are returned unchanged.
+func LocalURL(url, cwd string) string {
+	u := strings.TrimSpace(url)
+	if u == "" || strings.HasPrefix(u, "-") || strings.Contains(u, "://") || isSCPLike(u) {
+		return url
+	}
+	if filepath.IsAbs(u) {
+		return filepath.Clean(u)
+	}
+	return filepath.Join(cwd, u)
+}
+
+func isSCPLike(u string) bool {
+	colon := strings.Index(u, ":")
+	slash := strings.Index(u, "/")
+	return colon > 0 && (slash < 0 || colon < slash)
 }
