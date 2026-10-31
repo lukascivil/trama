@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -26,9 +27,18 @@ var ErrNoUpstream = errors.New("origin has no such branch")
 // ErrNotExist means a path does not exist at a revision.
 var ErrNotExist = errors.New("does not exist")
 
-// gitEnv is the environment of every git command run in dir.
-func gitEnv(dir string) []string {
+// remoteCommands are the git commands that talk to a remote, so the only
+// ones that may run ssh.
+var remoteCommands = []string{"clone", "fetch", "ls-remote", "pull", "push"}
+
+// gitEnv is the environment of the git command args run in dir. A local
+// command cannot fetch (GIT_NO_LAZY_FETCH), so it needs no ssh settings and
+// skips the core.sshCommand lookup, which costs a process per command.
+func gitEnv(dir string, args []string) []string {
 	env := append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=", "LC_ALL=C")
+	if len(args) == 0 || !slices.Contains(remoteCommands, args[0]) {
+		return append(env, "GIT_NO_LAZY_FETCH=1")
+	}
 	if os.Getenv("GIT_SSH_COMMAND") == "" && os.Getenv("GIT_SSH") == "" && !sshCommandConfigured(dir) {
 		env = append(env, "GIT_SSH_COMMAND=ssh -o BatchMode=yes")
 	}
@@ -53,7 +63,7 @@ func run(dir string, args ...string) (string, error) {
 func runRaw(dir string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
-	cmd.Env = gitEnv(dir)
+	cmd.Env = gitEnv(dir, args)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

@@ -17,3 +17,16 @@ func TestRecordURL(t *testing.T) {
 		t.Errorf("local origin gave %q", got)
 	}
 }
+
+func TestGitHubSlug(t *testing.T) {
+	for _, origin := range []string{"https://github.com/owner/repo.git", "https://github.com/owner/repo/", "git@github.com:owner/repo.git", "ssh://git@github.com/owner/repo"} {
+		if got := changes.GitHubSlug(origin); got != "owner/repo" {
+			t.Errorf("GitHubSlug(%q) = %q, want owner/repo", origin, got)
+		}
+	}
+	for _, origin := range []string{"https://gitlab.com/owner/repo.git", "/tmp/remote.git", ""} {
+		if got := changes.GitHubSlug(origin); got != "" {
+			t.Errorf("GitHubSlug(%q) = %q, want empty", origin, got)
+		}
+	}
+}
