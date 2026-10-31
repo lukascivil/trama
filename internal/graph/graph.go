@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/lukascivil/trama/internal/catalog"
+	"github.com/lukascivil/trama/internal/fsx"
 	"github.com/lukascivil/trama/internal/workspace"
 )
 
@@ -167,32 +168,10 @@ func Write(ws *workspace.Workspace) error {
 	if err := os.MkdirAll(docs, 0o755); err != nil {
 		return err
 	}
-	if err := replaceFile(filepath.Join(docs, "graph.md"), []byte(Doc(ws, rels, pending))); err != nil {
+	if err := fsx.ReplaceFile(filepath.Join(docs, "graph.md"), []byte(Doc(ws, rels, pending)), 0o644); err != nil {
 		return err
 	}
-	return replaceFile(agentsPath, []byte(updated))
-}
-
-// replaceFile writes data to a new file next to path and renames it over
-// path, so a symbolic link at path is replaced instead of followed.
-func replaceFile(path string, data []byte) error {
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".trama-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name())
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Chmod(0o644); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmp.Name(), path)
+	return fsx.ReplaceFile(agentsPath, []byte(updated), 0o644)
 }
 
 func orDash(items []string) string {

@@ -89,6 +89,7 @@ The plugin is served from the default branch and runs the binary with its own ve
 ## Known limitations
 
 - `trama add` rewrites `workspace.yaml` without its blank lines. Comments and unknown fields are kept.
+- `trama stamp` rewrites the card the same way: blank lines go and inline maps are compacted (`{ cmd: x }` becomes `{cmd: x}`).
 
 ## License
 

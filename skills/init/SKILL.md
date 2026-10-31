@@ -12,5 +12,5 @@ Create the workspace in the session's current directory. Do not create a GitHub 
 3. Run `trama init`. If the user gave a workspace name ($ARGUMENTS), add `--name <name>`.
 4. Run `mise trust`, then `mise install`.
 5. Tell the user what was created and what comes next:
-   - `trama add <url>` for each repository, then `trama sync` to clone them.
+   - `/trama:add-repo <url>` for each repository: it adds, clones and maps it.
    - `trama status` to see the state of every repository.

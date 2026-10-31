@@ -28,12 +28,12 @@ func checkLinks(ws *workspace.Workspace, l loaded, fs *[]Finding) int {
 				continue
 			}
 			if _, ok := ws.Repo(cf.PointsTo); !ok {
-				rep.errorf(fmt.Sprintf("config[%d] %s", i, cf.Env), "points_to %q is not a repo of the workspace", cf.PointsTo)
+				rep.errorf(strings.TrimSpace(fmt.Sprintf("config[%d] %s", i, cf.Env)), "points_to %q is not a repo of the workspace", cf.PointsTo)
 			}
 		}
 		for i, cs := range c.Consumes {
 			before := Errors(*fs)
-			where := fmt.Sprintf("consumes[%d] %s", i, cs.ID)
+			where := strings.TrimSpace(fmt.Sprintf("consumes[%d] %s", i, cs.ID))
 			if checkConsume(ws, l, r.Name, c, cs, rep, where) && Errors(*fs) == before {
 				proven++
 			}

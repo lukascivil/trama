@@ -8,6 +8,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/lukascivil/trama/internal/fsx"
 	"github.com/lukascivil/trama/internal/gitx"
 	"github.com/lukascivil/trama/internal/workspace"
 )
@@ -54,11 +55,7 @@ func Stamp(ws *workspace.Workspace, name string, today time.Time) (string, error
 	if err := enc.Close(); err != nil {
 		return "", err
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, buf.Bytes(), 0o644); err != nil {
-		return "", err
-	}
-	return sha, os.Rename(tmp, path)
+	return sha, fsx.ReplaceFile(path, buf.Bytes(), 0o644)
 }
 
 // originCommit returns origin/<branch> after checking that the clone is

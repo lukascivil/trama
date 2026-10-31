@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -18,6 +19,14 @@ import (
 
 // Unknown is the value of Consume.From when no provider is proven.
 const Unknown = "unknown"
+
+var commitSHA = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
+
+// IsCommitSHA reports whether s looks like a commit SHA (7 to 40 lowercase
+// hex characters). Branch names and other refs would never look stale.
+func IsCommitSHA(s string) bool {
+	return commitSHA.MatchString(s)
+}
 
 // Card is one catalog card.
 type Card struct {
@@ -124,6 +133,10 @@ func LoadStrict(root, name string) (*Card, error) {
 			return nil, fmt.Errorf("%s: empty card", path)
 		}
 		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	var extra yaml.Node
+	if err := dec.Decode(&extra); !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("%s: more than one YAML document", path)
 	}
 	return &c, nil
 }

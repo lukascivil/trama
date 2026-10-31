@@ -13,6 +13,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/lukascivil/trama/internal/fsx"
 	"github.com/lukascivil/trama/internal/gitx"
 )
 
@@ -296,12 +297,7 @@ func (w *Workspace) Save() error {
 	if err := enc.Close(); err != nil {
 		return err
 	}
-	path := filepath.Join(w.Root, FileName)
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, buf.Bytes(), 0o644); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
+	return fsx.ReplaceFile(filepath.Join(w.Root, FileName), buf.Bytes(), 0o644)
 }
 
 // NameFromURL derives a repository name from its clone URL: the last path

@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/lukascivil/trama/internal/catalog"
 	"github.com/lukascivil/trama/internal/gitx"
@@ -15,11 +16,9 @@ import (
 )
 
 var (
-	commitSHA = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
-	isoDate   = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
-	httpID    = regexp.MustCompile(`^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) /[^\s?#]*$`)
-	runKeys   = []string{"setup", "dev", "test"}
-	kinds     = []string{"http", "event", "package"}
+	httpID  = regexp.MustCompile(`^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) /[^\s?#]*$`)
+	runKeys = []string{"setup", "dev", "test"}
+	kinds   = []string{"http", "event", "package"}
 )
 
 // checkCard applies the rules that need only this card, workspace.yaml and
@@ -29,7 +28,7 @@ func checkCard(ws *workspace.Workspace, repo workspace.Repo, c *catalog.Card, re
 		rep.errorf("version", "must be 1")
 	}
 	if c.Name != repo.Name {
-		rep.errorf("name", "name is %q but the file is %s", c.Name, cardFile(repo.Name))
+		rep.errorf("name", "%q does not match the file name %s", c.Name, cardFile(repo.Name))
 	}
 	if strings.TrimSpace(c.Description) == "" {
 		rep.errorf("description", "is empty")
@@ -37,10 +36,10 @@ func checkCard(ws *workspace.Workspace, repo workspace.Repo, c *catalog.Card, re
 	if len(c.Stack) == 0 {
 		rep.errorf("stack", "is empty")
 	}
-	if !commitSHA.MatchString(c.MappedAtCommit) {
+	if !catalog.IsCommitSHA(c.MappedAtCommit) {
 		rep.errorf("mapped_at_commit", `must be a commit SHA (7 to 40 hex characters): run "trama stamp %s"`, repo.Name)
 	}
-	if !isoDate.MatchString(c.MappedAt) {
+	if _, err := time.Parse("2006-01-02", c.MappedAt); err != nil {
 		rep.errorf("mapped_at", "must be a date (YYYY-MM-DD)")
 	}
 	for _, key := range sortedKeys(c.Run) {
@@ -74,17 +73,17 @@ func checkCard(ws *workspace.Workspace, repo workspace.Repo, c *catalog.Card, re
 		ev.check(fmt.Sprintf("identity.topics[%d]", i), tp.Evidence, false)
 	}
 	for i, p := range c.Provides {
-		where := fmt.Sprintf("provides[%d] %s", i, p.ID)
+		where := strings.TrimSpace(fmt.Sprintf("provides[%d] %s", i, p.ID))
 		checkKindID(rep, where, p.Kind, p.ID)
 		ev.check(where, p.Evidence, false)
 	}
 	for i, cs := range c.Consumes {
-		where := fmt.Sprintf("consumes[%d] %s", i, cs.ID)
+		where := strings.TrimSpace(fmt.Sprintf("consumes[%d] %s", i, cs.ID))
 		checkKindID(rep, where, cs.Kind, cs.ID)
 		ev.check(where, cs.Evidence, false)
 	}
 	for i, cf := range c.Config {
-		where := fmt.Sprintf("config[%d] %s", i, cf.Env)
+		where := strings.TrimSpace(fmt.Sprintf("config[%d] %s", i, cf.Env))
 		if strings.TrimSpace(cf.Env) == "" {
 			rep.errorf(where, "env is empty")
 		}

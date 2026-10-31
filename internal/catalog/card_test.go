@@ -143,3 +143,26 @@ func TestNames(t *testing.T) {
 		t.Fatalf("Names = %v, %v", got, err)
 	}
 }
+
+func TestLoadStrictRejectsSecondDocument(t *testing.T) {
+	root := t.TempDir()
+	writeCard(t, root, "trama-demo-web", webCard+"---\nname: x\n")
+	if _, err := catalog.LoadStrict(root, "trama-demo-web"); err == nil || !strings.Contains(err.Error(), "more than one YAML document") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestIsCommitSHA(t *testing.T) {
+	ok := []string{"1cb5a15", strings.Repeat("a", 40)}
+	bad := []string{"main", "1CB5A15", "abc", strings.Repeat("a", 41), ""}
+	for _, s := range ok {
+		if !catalog.IsCommitSHA(s) {
+			t.Errorf("IsCommitSHA(%q) = false", s)
+		}
+	}
+	for _, s := range bad {
+		if catalog.IsCommitSHA(s) {
+			t.Errorf("IsCommitSHA(%q) = true", s)
+		}
+	}
+}

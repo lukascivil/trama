@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"strings"
 	"text/tabwriter"
 
@@ -24,10 +23,6 @@ const (
 	CardStale   Card = "stale"
 	CardUnknown Card = "unknown" // card exists but the repo is not cloned, so it cannot be checked
 )
-
-// commitSHA is what mapped_at_commit must look like. Branch names and other
-// refs would follow the branch and never look stale.
-var commitSHA = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
 
 // RepoStatus describes one repository.
 type RepoStatus struct {
@@ -113,7 +108,7 @@ func collectRepo(ws *workspace.Workspace, r workspace.Repo) RepoStatus {
 		s.Card = CardUnknown
 	default:
 		mapped, err := repo.RevParse(entry.MappedAtCommit + "^{commit}")
-		if !commitSHA.MatchString(entry.MappedAtCommit) || err != nil || mapped != originSHA {
+		if !catalog.IsCommitSHA(entry.MappedAtCommit) || err != nil || mapped != originSHA {
 			s.Card = CardStale
 		} else {
 			s.Card = CardCurrent

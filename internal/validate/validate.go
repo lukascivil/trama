@@ -4,6 +4,7 @@ package validate
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -108,6 +109,13 @@ func load(ws *workspace.Workspace, fs *[]Finding) loaded {
 	names, err := catalog.Names(ws.Root)
 	if err != nil {
 		*fs = append(*fs, Finding{Severity: Error, File: "catalog/", Message: err.Error()})
+	}
+	if entries, err := os.ReadDir(filepath.Join(ws.Root, "catalog")); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".yml") {
+				report{file: "catalog/" + e.Name(), out: fs}.errorf("", "use the .yaml extension")
+			}
+		}
 	}
 	exists := map[string]bool{}
 	for _, n := range names {

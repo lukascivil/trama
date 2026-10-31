@@ -89,6 +89,7 @@ O plugin é servido a partir da branch padrão e roda o binário com a própria 
 ## Limitações conhecidas
 
 - `trama add` regrava o `workspace.yaml` sem as linhas em branco. Comentários e campos desconhecidos são mantidos.
+- `trama stamp` regrava a ficha do mesmo jeito: as linhas em branco somem e os mapas em linha são compactados (`{ cmd: x }` vira `{cmd: x}`).
 
 ## Licença
 
