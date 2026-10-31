@@ -1,6 +1,6 @@
 # trama
 
-[English](README.md)
+[English](README.md) · [Site](https://lukascivil.github.io/trama/pt/)
 
 Empresas têm vários repositórios que dependem uns dos outros — um front que chama a API de um back, serviços que trocam eventos —, mas cada repositório tem vida própria: ferramentas, forma de rodar local, documentação e time. Migrar tudo para um monorepo é caro e muitas vezes inviável. Agentes de IA trabalham dentro de um repositório por vez, então não sabem que o `front-app` depende do `backend-app`, não respondem "o que quebra se eu mudar isso?" e não planejam uma mudança que atravessa os dois.
 
@@ -90,6 +90,12 @@ Para testar o plugin a partir deste checkout com um build local:
 ```bash
 go build -o /tmp/trama-dev ./cmd/trama
 TRAMA_BIN=/tmp/trama-dev claude --plugin-dir .
+```
+
+O site fica em `site/` (Astro). Todo push na `main` que muda o site publica no GitHub Pages:
+
+```bash
+cd site && mise exec -- npm install && mise exec -- npm run dev
 ```
 
 ## Publicar uma versão

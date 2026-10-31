@@ -1,6 +1,6 @@
 # trama
 
-[Português](README.pt-BR.md)
+[Português](README.pt-BR.md) · [Website](https://lukascivil.github.io/trama/)
 
 Companies have many repositories that depend on each other — a frontend that calls a backend's API, services that share events — but each repository has a life of its own: its own tools, its own way to run locally, its own docs and team. Moving everything into a monorepo is expensive and often not possible. AI coding agents work inside one repository at a time, so they cannot tell that `front-app` depends on `backend-app`, answer "what breaks if I change this?", or plan a change that spans both.
 
@@ -90,6 +90,12 @@ To try the plugin from this checkout with a local build:
 ```bash
 go build -o /tmp/trama-dev ./cmd/trama
 TRAMA_BIN=/tmp/trama-dev claude --plugin-dir .
+```
+
+The website lives in `site/` (Astro). Every push to `main` that changes it publishes it to GitHub Pages:
+
+```bash
+cd site && mise exec -- npm install && mise exec -- npm run dev
 ```
 
 ## Releasing

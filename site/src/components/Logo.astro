@@ -1,0 +1,30 @@
+---
+// A 3×3 weave: warp threads (vertical) and weft threads (horizontal) that
+// cross over and under, as the name says (trama is the weft of a fabric).
+interface Props {
+  size?: number;
+}
+const { size = 28 } = Astro.props;
+const at = [4, 12, 20];
+const over = at.flatMap((x, i) => at.map((y, j) => ({ x, y, on: (i + j) % 2 === 0 }))).filter((c) => c.on);
+---
+
+<svg class="logo" width={size} height={size} viewBox="0 0 28 28" aria-hidden="true">
+  {at.map((x) => <rect x={x} y="2" width="4" height="24" rx="2" class="warp" />)}
+  {at.map((y) => <rect x="2" y={y} width="24" height="4" rx="2" class="weft" />)}
+  {over.map((c) => <rect x={c.x} y={c.y - 1} width="4" height="6" class="warp over" />)}
+</svg>
+
+<style>
+  .warp {
+    fill: var(--thread-b);
+  }
+  .weft {
+    fill: var(--thread-a);
+  }
+  .over {
+    stroke: var(--bg);
+    stroke-width: 0.8;
+    paint-order: stroke;
+  }
+</style>

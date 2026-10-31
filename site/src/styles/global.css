@@ -1,0 +1,220 @@
+/* Tokens: light by default, dark from the system or the theme toggle. */
+:root {
+  --sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --bg: #fbfaf7;
+  --bg-elev: #ffffff;
+  --bg-soft: #f3f1ec;
+  --text: #15171c;
+  --muted: #575d69;
+  --border: #e5e2da;
+  --border-strong: #cfcbc1;
+  --thread-a: #d9480f;
+  --thread-b: #0f766e;
+  --accent-text: #b53d0c;
+  --shadow: 0 1px 2px rgb(20 20 20 / 0.04), 0 8px 24px rgb(20 20 20 / 0.06);
+
+  --code-bg: #12141a;
+  --code-bar: #171a21;
+  --code-border: #262a33;
+  --code-text: #e7e9ee;
+  --code-muted: #9aa1ad;
+  --code-comment: #6b7280;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0c0e13;
+    --bg-elev: #141720;
+    --bg-soft: #12151c;
+    --text: #eceef2;
+    --muted: #9ba2ae;
+    --border: #232833;
+    --border-strong: #343a47;
+    --thread-a: #ff8a3d;
+    --thread-b: #2dd4bf;
+    --accent-text: #ff9a55;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px rgb(0 0 0 / 0.35);
+    --code-bg: #0a0c10;
+    --code-bar: #0f1116;
+    --code-border: #232833;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0c0e13;
+  --bg-elev: #141720;
+  --bg-soft: #12151c;
+  --text: #eceef2;
+  --muted: #9ba2ae;
+  --border: #232833;
+  --border-strong: #343a47;
+  --thread-a: #ff8a3d;
+  --thread-b: #2dd4bf;
+  --accent-text: #ff9a55;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px rgb(0 0 0 / 0.35);
+  --code-bg: #0a0c10;
+  --code-bar: #0f1116;
+  --code-border: #232833;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 16px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+a {
+  color: inherit;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--thread-b);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.container {
+  width: 100%;
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 0 16px;
+  }
+}
+
+.section {
+  padding: 104px 0;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 640px) {
+  .section {
+    padding: 72px 0;
+  }
+}
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 13px/1 var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin-bottom: 18px;
+}
+
+.kicker::before {
+  content: '';
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--thread-a);
+}
+
+.section-title {
+  font-size: clamp(30px, 4.2vw, 46px);
+  font-weight: 700;
+  max-width: 22ch;
+}
+
+.section-lead {
+  margin-top: 18px;
+  font-size: 18px;
+  color: var(--muted);
+  max-width: 62ch;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 20px;
+  border-radius: 10px;
+  font: 600 15px/1 var(--sans);
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn-primary {
+  background: var(--text);
+  color: var(--bg);
+}
+
+.btn-ghost {
+  border-color: var(--border-strong);
+  color: var(--text);
+  background: var(--bg-elev);
+}
+
+.btn-ghost:hover {
+  border-color: var(--text);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

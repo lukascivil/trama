@@ -1,0 +1,120 @@
+---
+// A terminal-style code block. Lines that start with "$ " or "> " get a
+// prompt; lines that start with "# " are comments; other lines are output,
+// unless they are slash commands. plain shows a file as it is. With copy, a
+// button copies the commands without their prompts.
+interface Props {
+  code: string;
+  title?: string;
+  copy?: string;
+  copied?: string;
+  plain?: boolean;
+}
+const { code, title, copy, copied, plain = false } = Astro.props;
+const lines = code.split('\n').map((line) => {
+  if (plain) return { prompt: '', text: line, kind: 'file' };
+  if (line.startsWith('$ ')) return { prompt: '$', text: line.slice(2), kind: 'cmd' };
+  if (line.startsWith('> ')) return { prompt: '>', text: line.slice(2), kind: 'cmd' };
+  if (line.startsWith('# ')) return { prompt: '', text: line, kind: 'comment' };
+  return { prompt: '', text: line, kind: line.startsWith('/') ? 'cmd' : 'out' };
+});
+const commands = lines
+  .filter((l) => l.kind === 'cmd')
+  .map((l) => l.text)
+  .join('\n');
+---
+
+<div class="term">
+  <div class="term-bar">
+    <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+    {title && <span class="term-title">{title}</span>}
+    {
+      copy && (
+        <button class="term-copy" type="button" data-copy={commands} data-label={copy} data-done={copied}>
+          {copy}
+        </button>
+      )
+    }
+  </div>
+  <pre class:list={{ plain }}><code>{lines.map((l) => (
+    <span class={`line ${l.kind}`}>{l.prompt && <span class="prompt">{l.prompt} </span>}{l.text}{'\n'}</span>
+  ))}</code></pre>
+</div>
+
+<style>
+  .term {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    min-width: 0;
+  }
+  .term-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--code-border);
+    background: var(--code-bar);
+  }
+  .dots {
+    display: inline-flex;
+    gap: 6px;
+  }
+  .dots i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #3a3f4b;
+  }
+  .term-title {
+    font: 500 12px/1 var(--mono);
+    color: var(--code-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .term-copy {
+    margin-left: auto;
+    font: 500 12px/1 var(--sans);
+    color: var(--code-muted);
+    background: transparent;
+    border: 1px solid var(--code-border);
+    border-radius: 6px;
+    padding: 5px 9px;
+    cursor: pointer;
+  }
+  .term-copy:hover,
+  .term-copy:focus-visible {
+    color: var(--code-text);
+    border-color: var(--code-muted);
+  }
+  pre {
+    margin: 0;
+    padding: 14px 16px 16px;
+    overflow-x: auto;
+    font: 400 13px/1.65 var(--mono);
+    color: var(--code-text);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  pre.plain {
+    white-space: pre;
+    overflow-wrap: normal;
+  }
+  .prompt {
+    color: var(--thread-a);
+    user-select: none;
+  }
+  .out {
+    color: var(--code-muted);
+  }
+  .comment {
+    color: var(--code-comment);
+  }
+  .cmd,
+  .file {
+    color: var(--code-text);
+  }
+</style>

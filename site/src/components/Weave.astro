@@ -1,0 +1,157 @@
+---
+// The hero picture: repositories of one system linked by threads, each link
+// labeled with what it carries, one of them with its evidence.
+type Node = { id: string; x: number; y: number };
+const nodes: Node[] = [
+  { id: 'web', x: 78, y: 64 },
+  { id: 'mobile', x: 340, y: 64 },
+  { id: 'gateway', x: 210, y: 176 },
+  { id: 'orders-api', x: 96, y: 296 },
+  { id: 'auth', x: 330, y: 296 },
+  { id: 'billing', x: 210, y: 396 },
+];
+const H = 34;
+const width = (id: string) => id.length * 8 + 36;
+const at = Object.fromEntries(nodes.map((n) => [n.id, n]));
+
+type Edge = { from: string; to: string; thread: 'a' | 'b'; label?: string; evidence?: string };
+const edges: Edge[] = [
+  { from: 'web', to: 'gateway', thread: 'a', label: 'GET /orders', evidence: 'src/api/orders.ts:42' },
+  { from: 'mobile', to: 'gateway', thread: 'a' },
+  { from: 'gateway', to: 'orders-api', thread: 'b' },
+  { from: 'gateway', to: 'auth', thread: 'a', label: 'POST /authorize' },
+  { from: 'orders-api', to: 'billing', thread: 'b', label: 'orders.created' },
+];
+const paths = edges.map((e) => {
+  const a = at[e.from];
+  const b = at[e.to];
+  const y1 = a.y + H / 2;
+  const y2 = b.y - H / 2;
+  const my = (y1 + y2) / 2;
+  return {
+    ...e,
+    d: `M ${a.x} ${y1} C ${a.x} ${my}, ${b.x} ${my}, ${b.x} ${y2}`,
+    mx: (a.x + b.x) / 2,
+    my,
+  };
+});
+---
+
+<svg class="weave" viewBox="0 0 420 440" role="img" aria-labelledby="weave-title">
+  <title id="weave-title">web, mobile, gateway, orders-api, auth, billing</title>
+  <defs>
+    <pattern id="cloth" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="14" class="cloth-line"></line>
+    </pattern>
+    <radialGradient id="fade" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="1"></stop>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"></stop>
+    </radialGradient>
+    <mask id="fade-mask"><rect width="420" height="440" fill="url(#fade)"></rect></mask>
+  </defs>
+  <rect width="420" height="440" fill="url(#cloth)" mask="url(#fade-mask)"></rect>
+
+  {
+    paths.map((p) => (
+      <g class={`edge thread-${p.thread}`}>
+        <path d={p.d} class="base" />
+        <path d={p.d} class="flow" />
+      </g>
+    ))
+  }
+
+  {
+    paths
+      .filter((p) => p.label)
+      .map((p) => {
+        const w = Math.max(p.label!.length, p.evidence?.length ?? 0) * 6.6 + 18;
+        const h = p.evidence ? 36 : 22;
+        return (
+          <g class="label" transform={`translate(${p.mx - w / 2} ${p.my - h / 2})`}>
+            <rect width={w} height={h} rx="6" />
+            <text x={w / 2} y="15" class="label-id">{p.label}</text>
+            {p.evidence && (
+              <text x={w / 2} y="29" class="label-evidence">{p.evidence}</text>
+            )}
+          </g>
+        );
+      })
+  }
+
+  {
+    nodes.map((n) => (
+      <g class="node" transform={`translate(${n.x - width(n.id) / 2} ${n.y - H / 2})`}>
+        <rect width={width(n.id)} height={H} rx={H / 2} />
+        <circle cx="16" cy={H / 2} r="4" />
+        <text x={width(n.id) / 2 + 6} y={H / 2 + 4.5}>{n.id}</text>
+      </g>
+    ))
+  }
+</svg>
+
+<style>
+  .weave {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .cloth-line {
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+  .edge .base {
+    fill: none;
+    stroke-width: 2.5;
+    opacity: 0.35;
+  }
+  .edge .flow {
+    fill: none;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-dasharray: 2 14;
+    animation: flow 1.4s linear infinite;
+  }
+  .thread-a path {
+    stroke: var(--thread-a);
+  }
+  .thread-b path {
+    stroke: var(--thread-b);
+  }
+  @keyframes flow {
+    to {
+      stroke-dashoffset: -32;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .edge .flow {
+      animation: none;
+    }
+  }
+  .node rect {
+    fill: var(--bg-elev);
+    stroke: var(--border-strong);
+    stroke-width: 1;
+  }
+  .node circle {
+    fill: var(--thread-b);
+  }
+  .node text {
+    font: 500 13px var(--mono);
+    fill: var(--text);
+    text-anchor: middle;
+  }
+  .label rect {
+    fill: var(--bg);
+    stroke: var(--border);
+  }
+  .label-id {
+    font: 600 11px var(--mono);
+    fill: var(--text);
+    text-anchor: middle;
+  }
+  .label-evidence {
+    font: 400 10.5px var(--mono);
+    fill: var(--thread-b);
+    text-anchor: middle;
+  }
+</style>
