@@ -303,3 +303,16 @@ func TestBuildHundredRepos(t *testing.T) {
 		t.Fatalf("second build took %v, want under 2s", second)
 	}
 }
+
+func TestBuildProviderCardBrokenIsUnverified(t *testing.T) {
+	f := demo(t)
+	f.edit("trama-demo-api", "stack: [go]", "stack: [go]\ntypo_field: 1")
+	m := f.build()
+	if e := edgeOf(t, m, "trama-demo-web", "GET /hello"); e.Status != view.Unverified || !containsText(e.Problems, "trama-demo-api") {
+		t.Fatalf("edge = %+v, want unverified because the provider's card has errors", e)
+	}
+	api := repoOf(t, m, "trama-demo-api")
+	if len(api.Affected.Direct) != 0 || len(api.Affected.Possible) != 1 {
+		t.Fatalf("api affected = %+v, want the web only as possible", api.Affected)
+	}
+}

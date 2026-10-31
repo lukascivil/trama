@@ -232,6 +232,10 @@ func edges(ws *workspace.Workspace, cards map[string]*catalog.Card, probs map[st
 			e.Provider = cs.From
 			if _, ok := ws.Repo(cs.From); !ok {
 				e.Problems = append(e.Problems, fmt.Sprintf("from %q is not a repository of the workspace", cs.From))
+			} else if pp := probs[cs.From]; pp != nil && len(pp.file) > 0 {
+				// Validation skips the consumes of a card whose provider
+				// does not load, so nothing else would mark this one.
+				e.Problems = append(e.Problems, fmt.Sprintf("the card of %s has errors, so this relation cannot be checked", cs.From))
 			}
 			e.Status = Proven
 			if len(e.Problems) > 0 {
