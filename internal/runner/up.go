@@ -120,9 +120,21 @@ func (s *stopOnError) Write(p []byte) (int, error) {
 }
 
 // BusyPorts lists "<repo>: port <n> is already in use" for every job whose
-// Port is set and taken.
+// Port is set and taken, and "<a> and <b>: both use port <n>" when two jobs
+// declare the same port.
 func BusyPorts(jobs []Job) []string {
 	var busy []string
+	owner := map[int]string{}
+	for _, j := range jobs {
+		if j.Port == 0 {
+			continue
+		}
+		if first, ok := owner[j.Port]; ok {
+			busy = append(busy, fmt.Sprintf("%s and %s: both use port %d", first, j.Repo, j.Port))
+			continue
+		}
+		owner[j.Port] = j.Repo
+	}
 	for _, j := range jobs {
 		if j.Port != 0 && !PortFree(j.Port) {
 			busy = append(busy, fmt.Sprintf("%s: port %d is already in use", j.Repo, j.Port))

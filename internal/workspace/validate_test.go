@@ -55,3 +55,14 @@ func TestCheckNew(t *testing.T) {
 		t.Errorf("valid repo rejected: %v", err)
 	}
 }
+
+func TestValidBranch(t *testing.T) {
+	if err := workspace.ValidBranch("trama/rename-message"); err != nil {
+		t.Fatalf("valid branch rejected: %v", err)
+	}
+	for _, b := range []string{"-x", "a..b", "a b", ""} {
+		if err := workspace.ValidBranch(b); err == nil || !strings.Contains(err.Error(), "invalid branch name") {
+			t.Errorf("ValidBranch(%q) = %v", b, err)
+		}
+	}
+}

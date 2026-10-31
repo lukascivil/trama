@@ -19,7 +19,14 @@ import (
 // every repository of the workspace. explicit tells which.
 func targets(ws *workspace.Workspace, args []string) (names []string, explicit bool) {
 	if len(args) > 0 {
-		return args, true
+		seen := map[string]bool{}
+		for _, a := range args {
+			if !seen[a] {
+				seen[a] = true
+				names = append(names, a)
+			}
+		}
+		return names, true
 	}
 	for _, r := range ws.Repos {
 		names = append(names, r.Name)

@@ -76,3 +76,14 @@ func TestTestRunsSetupFirst(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 }
+
+func TestTestRunsRepeatedRepoOnce(t *testing.T) {
+	ws := runWorkspace(t, "run:\n  test: { cmd: \"echo X >> count\" }\n")
+	if out, err := run(t, "test", "api", "api", "--dir", ws); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	b, _ := os.ReadFile(filepath.Join(ws, "repos", "api", "count"))
+	if strings.Count(string(b), "X") != 1 {
+		t.Fatalf("count file = %q", b)
+	}
+}

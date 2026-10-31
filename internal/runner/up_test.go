@@ -142,3 +142,17 @@ func TestBusyPorts(t *testing.T) {
 		t.Fatalf("BusyPorts = %q", got)
 	}
 }
+
+func TestBusyPortsSharedPort(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+	got := runner.BusyPorts([]runner.Job{{Repo: "a", Port: port}, {Repo: "b", Port: port}})
+	want := fmt.Sprintf("a and b: both use port %d", port)
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("BusyPorts = %q, want [%q]", got, want)
+	}
+}

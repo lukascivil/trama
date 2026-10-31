@@ -187,7 +187,16 @@ func validateBranch(name, branch string) error {
 	if strings.TrimSpace(branch) == "" {
 		return fmt.Errorf("repo %s: branch is empty", name)
 	}
-	bad := branch == "@" ||
+	if err := ValidBranch(branch); err != nil {
+		return fmt.Errorf("repo %s: %w", name, err)
+	}
+	return nil
+}
+
+// ValidBranch applies the parts of git's ref-name rules that matter for a
+// branch name trama is given (in workspace.yaml or on the command line).
+func ValidBranch(branch string) error {
+	bad := branch == "" || branch == "@" ||
 		strings.HasPrefix(branch, "-") || strings.HasPrefix(branch, "/") ||
 		strings.HasSuffix(branch, "/") || strings.HasSuffix(branch, ".") || strings.HasSuffix(branch, ".lock") ||
 		strings.Contains(branch, "..") || strings.Contains(branch, "@{") || strings.Contains(branch, "//") ||
@@ -196,7 +205,7 @@ func validateBranch(name, branch string) error {
 		bad = bad || c < 0x20 || c == 0x7f
 	}
 	if bad {
-		return fmt.Errorf("repo %s: invalid branch name %q", name, branch)
+		return fmt.Errorf("invalid branch name %q", branch)
 	}
 	return nil
 }
