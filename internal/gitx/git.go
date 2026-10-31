@@ -13,9 +13,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"slices"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // ErrDiverged means the local branch has commits origin does not have.
@@ -27,31 +27,33 @@ var ErrNoUpstream = errors.New("origin has no such branch")
 // ErrNotExist means a path does not exist at a revision.
 var ErrNotExist = errors.New("does not exist")
 
-// remoteCommands are the git commands that talk to a remote, so the only
-// ones that may run ssh.
-var remoteCommands = []string{"clone", "fetch", "ls-remote", "pull", "push"}
-
-// gitEnv is the environment of the git command args run in dir. A local
-// command cannot fetch (GIT_NO_LAZY_FETCH), so it needs no ssh settings and
-// skips the core.sshCommand lookup, which costs a process per command.
-func gitEnv(dir string, args []string) []string {
+// gitEnv is the environment of every git command run in dir.
+func gitEnv(dir string) []string {
 	env := append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=", "LC_ALL=C")
-	if len(args) == 0 || !slices.Contains(remoteCommands, args[0]) {
-		return append(env, "GIT_NO_LAZY_FETCH=1")
-	}
 	if os.Getenv("GIT_SSH_COMMAND") == "" && os.Getenv("GIT_SSH") == "" && !sshCommandConfigured(dir) {
 		env = append(env, "GIT_SSH_COMMAND=ssh -o BatchMode=yes")
 	}
 	return env
 }
 
+// sshLookups caches sshCommandConfigured by directory and the variables
+// that choose git's config files: the lookup costs a process, and every
+// git command needs it.
+var sshLookups sync.Map
+
 // sshCommandConfigured reports whether git config sets core.sshCommand,
 // which GIT_SSH_COMMAND would override.
 func sshCommandConfigured(dir string) bool {
+	key := strings.Join([]string{dir, os.Getenv("HOME"), os.Getenv("XDG_CONFIG_HOME"), os.Getenv("GIT_CONFIG_GLOBAL"), os.Getenv("GIT_CONFIG_SYSTEM"), os.Getenv("GIT_CONFIG_NOSYSTEM")}, "\x00")
+	if v, ok := sshLookups.Load(key); ok {
+		return v.(bool)
+	}
 	cmd := exec.Command("git", "config", "--get", "core.sshCommand")
 	cmd.Dir = dir
 	out, err := cmd.Output()
-	return err == nil && strings.TrimSpace(string(out)) != ""
+	set := err == nil && strings.TrimSpace(string(out)) != ""
+	sshLookups.Store(key, set)
+	return set
 }
 
 func run(dir string, args ...string) (string, error) {
@@ -63,7 +65,7 @@ func run(dir string, args ...string) (string, error) {
 func runRaw(dir string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
-	cmd.Env = gitEnv(dir, args)
+	cmd.Env = gitEnv(dir)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
