@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // ErrDiverged means the local branch has commits origin does not have.
@@ -35,13 +36,24 @@ func gitEnv(dir string) []string {
 	return env
 }
 
+// sshLookups caches sshCommandConfigured by directory and the variables
+// that choose git's config files: the lookup costs a process, and every
+// git command needs it.
+var sshLookups sync.Map
+
 // sshCommandConfigured reports whether git config sets core.sshCommand,
 // which GIT_SSH_COMMAND would override.
 func sshCommandConfigured(dir string) bool {
+	key := strings.Join([]string{dir, os.Getenv("HOME"), os.Getenv("XDG_CONFIG_HOME"), os.Getenv("GIT_CONFIG_GLOBAL"), os.Getenv("GIT_CONFIG_SYSTEM"), os.Getenv("GIT_CONFIG_NOSYSTEM")}, "\x00")
+	if v, ok := sshLookups.Load(key); ok {
+		return v.(bool)
+	}
 	cmd := exec.Command("git", "config", "--get", "core.sshCommand")
 	cmd.Dir = dir
 	out, err := cmd.Output()
-	return err == nil && strings.TrimSpace(string(out)) != ""
+	set := err == nil && strings.TrimSpace(string(out)) != ""
+	sshLookups.Store(key, set)
+	return set
 }
 
 func run(dir string, args ...string) (string, error) {
@@ -216,6 +228,36 @@ func (r Repo) ReadFile(rev, path string) ([]byte, error) {
 		return nil, fmt.Errorf("%s is not a regular file at %s", path, rev)
 	}
 	return runRaw(r.Dir, "cat-file", "blob", f[2])
+}
+
+// Tag is a tag name and its date: the tagger's for an annotated tag, the
+// commit's for a lightweight one, in strict ISO 8601.
+type Tag struct{ Name, Date string }
+
+// TagsMerged lists the tags whose commits are reachable from ref.
+func (r Repo) TagsMerged(ref string) ([]Tag, error) {
+	out, err := run(r.Dir, "for-each-ref", "--merged="+ref, "--format=%(refname)%09%(creatordate:iso-strict)", "refs/tags")
+	if err != nil {
+		return nil, err
+	}
+	var tags []Tag
+	for _, line := range strings.Split(out, "\n") {
+		name, date, ok := strings.Cut(line, "\t")
+		if !ok {
+			continue
+		}
+		tags = append(tags, Tag{Name: strings.TrimPrefix(name, "refs/tags/"), Date: date})
+	}
+	return tags, nil
+}
+
+// CountCommits returns how many commits are in to and not in from.
+func (r Repo) CountCommits(from, to string) (int, error) {
+	out, err := run(r.Dir, "rev-list", "--count", from+".."+to, "--")
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(out)
 }
 
 // BranchExists reports whether a local branch exists.

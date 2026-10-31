@@ -2,6 +2,7 @@ package status_test
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -235,5 +236,61 @@ func TestRenderTable(t *testing.T) {
 		if !bytes.Contains([]byte(out), []byte(want)) {
 			t.Fatalf("output lacks %q:\n%s", want, out)
 		}
+	}
+}
+
+// manyRepos is a workspace with n repos; the even ones are cloned.
+func manyRepos(t *testing.T, n int) *workspace.Workspace {
+	t.Helper()
+	root := t.TempDir()
+	yaml := "version: 1\nname: many\nrepos:\n"
+	urls := make([]string, n)
+	for i := range n {
+		urls[i] = filepath.Join(root, fmt.Sprintf("missing-%d.git", i))
+		if i%2 == 0 {
+			urls[i] = testutil.NewRemote(t, "main").URL
+		}
+		yaml += fmt.Sprintf("  - name: r%02d\n    url: %s\n    branch: main\n", i, urls[i])
+	}
+	if err := os.WriteFile(filepath.Join(root, workspace.FileName), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ws, err := workspace.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < n; i += 2 {
+		if err := gitx.Clone(urls[i], "main", ws.RepoDir(fmt.Sprintf("r%02d", i))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return ws
+}
+
+func TestCollectKeepsWorkspaceOrder(t *testing.T) {
+	ws := manyRepos(t, 12)
+	sts := status.Collect(ws)
+	if len(sts) != 12 {
+		t.Fatalf("got %d statuses, want 12", len(sts))
+	}
+	for i, s := range sts {
+		if want := fmt.Sprintf("r%02d", i); s.Name != want || s.Cloned != (i%2 == 0) {
+			t.Fatalf("status %d = %s cloned=%v, want %s cloned=%v", i, s.Name, s.Cloned, want, i%2 == 0)
+		}
+	}
+}
+
+func TestCollectOriginSHA(t *testing.T) {
+	ws := manyRepos(t, 2)
+	sts := status.Collect(ws)
+	want, err := gitx.Repo{Dir: ws.RepoDir("r00")}.RevParse("origin/main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sts[0].OriginSHA != want {
+		t.Fatalf("cloned repo: OriginSHA = %q, want %q", sts[0].OriginSHA, want)
+	}
+	if sts[1].OriginSHA != "" {
+		t.Fatalf("repo not cloned: OriginSHA = %q, want empty", sts[1].OriginSHA)
 	}
 }

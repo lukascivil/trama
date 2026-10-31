@@ -49,6 +49,8 @@ In Claude Code, from the workspace:
 
 Then `trama graph` writes `docs/graph.md` and the repository table in `AGENTS.md`. `/trama:map` never commits: review and commit `catalog/`, `docs/graph.md` and `AGENTS.md` yourself.
 
+`trama graph --serve` opens an interactive graph of the workspace in your browser: every repository with its latest release (the highest semver tag) and every relation with its proof. Click a repository to see who may be affected if you release something there: direct consumers, with the `file:line` that proves it; indirect ones, through other repositories; and possible ones, from relations without proof. It also has search, filters and a focus on one repository's neighbors. Everything runs on your machine: the server listens only on `127.0.0.1` and the page loads nothing from the internet.
+
 ## Change across repositories
 
 - `/trama:impact <change>` tells, without changing anything, which repositories and lines a change affects, whether it breaks them, and the safe order to ship it (expand → migrate → contract).
@@ -68,6 +70,7 @@ Run them from anywhere inside the workspace (in your own shell, through `mise ex
 | `trama validate` | Checks every catalog card: required fields, evidence that exists in the clone, and proof for every relation. |
 | `trama stamp <repo>` | Records in the card the commit it describes (`origin/<branch>`). Refuses unless the clone is clean and up to date. |
 | `trama graph` | Writes `docs/graph.md` (Mermaid) and the table between the markers in `AGENTS.md`. Refuses an invalid catalog. |
+| `trama graph --serve [--port <n>] [--no-open]` | Serves an interactive graph of the workspace on `127.0.0.1` (port 7300, or a free one) and opens the browser, until Ctrl+C. It only reads; validation errors show on the page. |
 | `trama setup [repo...]` | Runs `run.setup` from each card (e.g. `npm install`) and remembers it, so `dev`, `test` and `up` only repeat it after new commits, a new command or new tool versions. |
 | `trama dev <repo>` | Runs `run.dev` in the foreground, after the setup when needed, with the card's runtime versions through `mise exec`. |
 | `trama test [repo...]` | Runs `run.test` of each repository, after its setup when needed, and prints `passed` or `failed` for each. |

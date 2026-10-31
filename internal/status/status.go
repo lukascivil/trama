@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"text/tabwriter"
 
 	"github.com/lukascivil/trama/internal/catalog"
@@ -37,14 +38,29 @@ type RepoStatus struct {
 	Card    Card
 	Pending []string // consumes with from: unknown, as "<id> (candidates: a, b)"
 	Err     string   // repo could not be inspected
+	// OriginSHA is origin/<Main> in the clone; "" when it cannot be resolved.
+	OriginSHA string
 }
 
-// Collect inspects every repository of ws. It never touches the network.
+// workers bounds how many repositories Collect inspects at once.
+const workers = 8
+
+// Collect inspects every repository of ws, several at a time, and returns
+// them in workspace order. It never touches the network.
 func Collect(ws *workspace.Workspace) []RepoStatus {
-	sts := make([]RepoStatus, 0, len(ws.Repos))
-	for _, r := range ws.Repos {
-		sts = append(sts, collectRepo(ws, r))
+	sts := make([]RepoStatus, len(ws.Repos))
+	sem := make(chan struct{}, workers)
+	var wg sync.WaitGroup
+	for i, r := range ws.Repos {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			sts[i] = collectRepo(ws, r)
+		}()
 	}
+	wg.Wait()
 	return sts
 }
 
@@ -96,8 +112,11 @@ func collectRepo(ws *workspace.Workspace, r workspace.Repo) RepoStatus {
 	if err != nil {
 		originSHA = ""
 		errs = append(errs, fmt.Sprintf(`no %s ref: run "trama sync" (if it fails, check branch in workspace.yaml)`, originRef))
-	} else if _, err := repo.RevParse(r.Branch); err == nil {
-		s.Ahead, s.Behind, _ = repo.AheadBehind(r.Branch, originRef)
+	} else {
+		s.OriginSHA = originSHA
+		if _, err := repo.RevParse(r.Branch); err == nil {
+			s.Ahead, s.Behind, _ = repo.AheadBehind(r.Branch, originRef)
+		}
 	}
 
 	switch {
