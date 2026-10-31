@@ -61,7 +61,7 @@ Rode de qualquer lugar dentro do workspace (no seu terminal, via `mise exec -- t
 | `trama validate` | Confere todas as fichas: campos obrigatórios, evidência que existe no clone e prova de cada relação. |
 | `trama stamp <repo>` | Grava na ficha o commit que ela descreve (`origin/<branch>`). Recusa se o clone não estiver limpo e atualizado. |
 | `trama graph` | Escreve o `docs/graph.md` (Mermaid) e a tabela entre os marcadores do `AGENTS.md`. Recusa catálogo inválido. |
-| `trama setup [repo...]` | Roda o `run.setup` de cada ficha (ex.: `npm install`) e lembra disso, para que `dev` e `up` só repitam depois de commits novos ou de um comando novo. |
+| `trama setup [repo...]` | Roda o `run.setup` de cada ficha (ex.: `npm install`) e lembra disso, para que `dev`, `test` e `up` só repitam depois de commits novos, de um comando novo ou de versões novas das ferramentas. |
 | `trama dev <repo>` | Roda o `run.dev` em primeiro plano, depois do setup quando preciso, com as versões de runtime da ficha via `mise exec`. |
 | `trama test [repo...]` | Roda o `run.test` de cada repositório, depois do setup quando preciso, e mostra `passed` ou `failed` para cada um. |
 | `trama up [repo...]` | Roda o `run.dev` de todos os repositórios ao mesmo tempo, cada linha com o nome do repositório. Recusa subir se uma porta de dev já estiver em uso. Ctrl+C para todos os processos, inclusive os filhos. |

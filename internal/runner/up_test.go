@@ -68,14 +68,16 @@ func TestUpKeepsOthersWhenOneExits(t *testing.T) {
 	var out syncBuffer
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	aDir := t.TempDir()
 	jobs := []runner.Job{
-		{Repo: "a", Dir: t.TempDir(), Cmd: "exit 4"},
+		{Repo: "a", Dir: aDir, Cmd: "echo $$ > pid; exit 4"},
 		{Repo: "b", Dir: t.TempDir(), Cmd: "echo up; sleep 30"},
 	}
 	done := make(chan []runner.Result)
 	go func() { done <- runner.Up(ctx, jobs, &out, 2*time.Second) }()
 	waitFor(t, "b to start", func() bool { return strings.Contains(out.String(), "b | up") })
-	time.Sleep(300 * time.Millisecond) // a has exited; b must still be running
+	waitFor(t, "a to exit", gone(readPid(t, filepath.Join(aDir, "pid"))))
+	time.Sleep(100 * time.Millisecond) // let Up record a's result
 	select {
 	case <-done:
 		t.Fatal("Up returned while b was still running")

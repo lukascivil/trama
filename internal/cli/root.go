@@ -2,10 +2,13 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/lukascivil/trama/internal/runner"
 )
 
 // version is set at build time with
@@ -15,8 +18,11 @@ var version = "dev"
 // Execute runs the trama command and returns the process exit code.
 func Execute() int {
 	if err := newRootCmd().Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "trama: %v\n", err)
-		return 1
+		code, quiet := exitCode(err)
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "trama: %v\n", err)
+		}
+		return code
 	}
 	return 0
 }
@@ -31,4 +37,13 @@ func newRootCmd() *cobra.Command {
 	root.PersistentFlags().StringP("dir", "C", "", "run as if trama was started in this directory")
 	root.AddCommand(newVersionCmd(), newInitCmd(), newAddCmd(), newSyncCmd(), newStatusCmd(), newValidateCmd(), newStampCmd(), newGraphCmd(), newSetupCmd(), newTestCmd(), newDevCmd(), newUpCmd())
 	return root
+}
+
+// exitCode maps an error to the process exit code and whether to stay
+// quiet: an interrupt exits 130 without a message, like a shell.
+func exitCode(err error) (int, bool) {
+	if errors.Is(err, runner.ErrInterrupted) {
+		return 130, true
+	}
+	return 1, false
 }

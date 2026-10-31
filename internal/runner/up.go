@@ -14,6 +14,7 @@ import (
 // Result is how one job of Up ended.
 type Result struct {
 	Repo     string
+	Started  bool // false when the command could not start (see Err)
 	ExitCode int  // -1 when it could not start or was killed by a signal
 	Stopped  bool // ended because Up stopped it
 	Err      error
@@ -21,9 +22,14 @@ type Result struct {
 
 // Up starts every job at once, each in its own process group with stdin
 // closed, and prefixes its output with the repo name padded to the longest
-// one. It returns when all jobs ended. When ctx is cancelled it sends
-// SIGTERM to every group, waits up to grace, then sends SIGKILL.
+// one. It returns when all jobs ended. When ctx is cancelled, or writing to
+// out fails, it sends SIGTERM to every running group, waits up to grace,
+// then sends SIGKILL. A job that ends on its own gets its group stopped
+// too, so its background children do not outlive it.
 func Up(ctx context.Context, jobs []Job, out io.Writer, grace time.Duration) []Result {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	out = &stopOnError{w: out, stop: cancel}
 	width := 0
 	for _, j := range jobs {
 		width = max(width, len(j.Repo))
@@ -32,7 +38,8 @@ func Up(ctx context.Context, jobs []Job, out io.Writer, grace time.Duration) []R
 	var stopping atomic.Bool
 	var wg sync.WaitGroup
 	results := make([]Result, len(jobs))
-	var groups []int
+	var groupsMu sync.Mutex
+	active := map[int]bool{} // process groups of jobs still running
 
 	for i, j := range jobs {
 		w := NewPrefixWriter(out, fmt.Sprintf("%*s", width, j.Repo), &mu)
@@ -49,13 +56,23 @@ func Up(ctx context.Context, jobs []Job, out io.Writer, grace time.Duration) []R
 			results[i] = Result{Repo: j.Repo, ExitCode: -1, Err: err}
 			continue
 		}
-		groups = append(groups, c.Process.Pid)
+		pgid := c.Process.Pid
+		groupsMu.Lock()
+		active[pgid] = true
+		groupsMu.Unlock()
 		wg.Add(1)
 		go func(i int, c *exec.Cmd, w io.WriteCloser) {
 			defer wg.Done()
 			err := c.Wait()
 			w.Close()
-			results[i] = Result{Repo: jobs[i].Repo, ExitCode: c.ProcessState.ExitCode(), Stopped: stopping.Load(), Err: err}
+			groupsMu.Lock()
+			delete(active, pgid)
+			groupsMu.Unlock()
+			stopped := stopping.Load()
+			if !stopped {
+				_ = syscall.Kill(-pgid, syscall.SIGTERM) // background children of a job that ended
+			}
+			results[i] = Result{Repo: jobs[i].Repo, Started: true, ExitCode: c.ProcessState.ExitCode(), Stopped: stopped, Err: err}
 		}(i, c, w)
 	}
 
@@ -68,21 +85,38 @@ func Up(ctx context.Context, jobs []Job, out io.Writer, grace time.Duration) []R
 	case <-done:
 	case <-ctx.Done():
 		stopping.Store(true)
-		signalGroups(groups, syscall.SIGTERM)
+		signalGroups := func(sig syscall.Signal) {
+			groupsMu.Lock()
+			defer groupsMu.Unlock()
+			for pgid := range active {
+				_ = syscall.Kill(-pgid, sig)
+			}
+		}
+		signalGroups(syscall.SIGTERM)
 		select {
 		case <-done:
 		case <-time.After(grace):
-			signalGroups(groups, syscall.SIGKILL)
+			signalGroups(syscall.SIGKILL)
 			<-done
 		}
 	}
 	return results
 }
 
-func signalGroups(pids []int, sig syscall.Signal) {
-	for _, pid := range pids {
-		_ = syscall.Kill(-pid, sig)
+// stopOnError stops Up when its output can no longer be written (a closed
+// pipe), so servers never keep running unseen.
+type stopOnError struct {
+	w    io.Writer
+	once sync.Once
+	stop func()
+}
+
+func (s *stopOnError) Write(p []byte) (int, error) {
+	n, err := s.w.Write(p)
+	if err != nil {
+		s.once.Do(s.stop)
 	}
+	return n, err
 }
 
 // BusyPorts lists "<repo>: port <n> is already in use" for every job whose

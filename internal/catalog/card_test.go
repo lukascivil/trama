@@ -166,3 +166,11 @@ func TestIsCommitSHA(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadStrictAcceptsTrailingSeparator(t *testing.T) {
+	root := t.TempDir()
+	writeCard(t, root, "trama-demo-web", webCard+"---\n")
+	if _, err := catalog.LoadStrict(root, "trama-demo-web"); err != nil {
+		t.Fatalf("trailing --- rejected: %v", err)
+	}
+}

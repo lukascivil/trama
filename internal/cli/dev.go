@@ -27,10 +27,18 @@ func setupIfNeeded(ws *workspace.Workspace, name string, out io.Writer, run func
 	}
 	fmt.Fprintln(out, j.Describe())
 	if err := run(j); err != nil {
-		return fmt.Errorf("setup of %s failed (%s)", name, exitText(err))
+		if errors.Is(err, runner.ErrInterrupted) {
+			return err
+		}
+		return &setupError{name: name, reason: exitText(err)}
 	}
 	return runner.MarkSetup(ws, j)
 }
+
+// setupError is a failed setup; up skips the repository, dev and test stop.
+type setupError struct{ name, reason string }
+
+func (e *setupError) Error() string { return fmt.Sprintf("setup of %s failed (%s)", e.name, e.reason) }
 
 func newDevCmd() *cobra.Command {
 	return &cobra.Command{

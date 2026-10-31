@@ -3,6 +3,7 @@ package validate
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -41,6 +42,11 @@ func checkCard(ws *workspace.Workspace, repo workspace.Repo, c *catalog.Card, re
 	}
 	if _, err := time.Parse("2006-01-02", c.MappedAt); err != nil {
 		rep.errorf("mapped_at", "must be a date (YYYY-MM-DD)")
+	}
+	for _, tool := range slices.Sorted(maps.Keys(c.Tools)) {
+		if err := catalog.ValidateTool(tool, c.Tools[tool]); err != nil {
+			rep.errorf("tools."+tool, "use a plain tool name (e.g. node, go, python) and a version without spaces")
+		}
 	}
 	for _, key := range sortedKeys(c.Run) {
 		switch {

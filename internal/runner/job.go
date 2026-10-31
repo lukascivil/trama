@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/lukascivil/trama/internal/catalog"
 	"github.com/lukascivil/trama/internal/workspace"
@@ -55,6 +56,11 @@ func JobFor(ws *workspace.Workspace, name string, kind Kind) (Job, error) {
 	if !ok || c.Cmd == "" {
 		return Job{}, &noCommandError{name: name, kind: kind}
 	}
+	for tool, version := range card.Tools {
+		if err := catalog.ValidateTool(tool, version); err != nil {
+			return Job{}, fmt.Errorf("%s: %w", name, err)
+		}
+	}
 	return Job{Repo: name, Kind: kind, Dir: dir, Cmd: c.Cmd, Tools: card.Tools, Port: c.Port}, nil
 }
 
@@ -76,19 +82,42 @@ func (j Job) Args() []string {
 	if len(j.Tools) == 0 {
 		return shell
 	}
+	args := append([]string{"mise", "exec"}, j.toolSpecs()...)
+	return append(append(args, "--"), shell...)
+}
+
+// toolSpecs returns "tool@version" for every tool, sorted by tool.
+func (j Job) toolSpecs() []string {
 	keys := make([]string, 0, len(j.Tools))
 	for k := range j.Tools {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	args := []string{"mise", "exec"}
+	specs := make([]string, 0, len(keys))
 	for _, k := range keys {
-		args = append(args, k+"@"+j.Tools[k])
+		specs = append(specs, k+"@"+j.Tools[k])
 	}
-	return append(append(args, "--"), shell...)
+	return specs
 }
 
-// Describe is the line printed before the command runs.
+// Describe is the line printed before the command runs. Control characters
+// are escaped, so a card cannot hide what runs.
 func (j Job) Describe() string {
-	return fmt.Sprintf("$ %s  (in repos/%s)", j.Cmd, j.Repo)
+	where := "repos/" + j.Repo
+	if len(j.Tools) > 0 {
+		where += ", with " + strings.Join(j.toolSpecs(), " ") + " via mise"
+	}
+	return fmt.Sprintf("$ %s  (in %s)", escapeControl(j.Cmd), escapeControl(where))
+}
+
+func escapeControl(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r < 0x20 || r == 0x7f {
+			fmt.Fprintf(&b, `\x%02x`, r)
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }

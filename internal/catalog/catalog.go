@@ -20,7 +20,21 @@ import (
 // Unknown is the value of Consume.From when no provider is proven.
 const Unknown = "unknown"
 
-var commitSHA = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
+var (
+	commitSHA   = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
+	toolName    = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+	toolVersion = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]*$`)
+)
+
+// ValidateTool checks a tools entry: a plain mise tool name (no backend
+// prefix such as npm: or github:, which would install arbitrary software)
+// and a version without spaces or shell characters.
+func ValidateTool(name, version string) error {
+	if !toolName.MatchString(name) || !toolVersion.MatchString(version) {
+		return fmt.Errorf("tools.%s: use a plain tool name (e.g. node, go, python) and a version without spaces", name)
+	}
+	return nil
+}
 
 // IsCommitSHA reports whether s looks like a commit SHA (7 to 40 lowercase
 // hex characters). Branch names and other refs would never look stale.
@@ -134,11 +148,25 @@ func LoadStrict(root, name string) (*Card, error) {
 		}
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
-	var extra yaml.Node
-	if err := dec.Decode(&extra); !errors.Is(err, io.EOF) {
-		return nil, fmt.Errorf("%s: more than one YAML document", path)
+	for {
+		var extra yaml.Node
+		err := dec.Decode(&extra)
+		if errors.Is(err, io.EOF) {
+			return &c, nil
+		}
+		if err != nil || !emptyDocument(&extra) {
+			return nil, fmt.Errorf("%s: more than one YAML document", path)
+		}
 	}
-	return &c, nil
+}
+
+// emptyDocument reports whether n is a document with nothing in it, as a
+// trailing "---" produces.
+func emptyDocument(n *yaml.Node) bool {
+	if len(n.Content) == 0 {
+		return true
+	}
+	return len(n.Content) == 1 && n.Content[0].Kind == yaml.ScalarNode && n.Content[0].Tag == "!!null" && n.Content[0].Value == ""
 }
 
 func read(root, name string) ([]byte, string, error) {

@@ -9,15 +9,22 @@ import (
 	"testing"
 )
 
-func TestUpRefusesBusyPort(t *testing.T) {
+// busyPortWorkspace holds a port busy for the test and returns a workspace
+// whose api card runs "touch ran" on that port, plus extra run entries.
+func busyPortWorkspace(t *testing.T, extra string) (string, int) {
+	t.Helper()
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer l.Close()
+	t.Cleanup(func() { l.Close() })
 	port := l.Addr().(*net.TCPAddr).Port
-	ws := runWorkspace(t, fmt.Sprintf("run:\n  dev: { cmd: \"touch ran\", port: %d }\n", port))
-	_, err = run(t, "up", "--dir", ws)
+	return runWorkspace(t, fmt.Sprintf("run:\n  dev: { cmd: \"touch ran\", port: %d }\n  %s", port, extra)), port
+}
+
+func TestUpRefusesBusyPort(t *testing.T) {
+	ws, port := busyPortWorkspace(t, "")
+	_, err := run(t, "up", "--dir", ws)
 	want := fmt.Sprintf("cannot start: api: port %d is already in use", port)
 	if err == nil || err.Error() != want {
 		t.Fatalf("err = %v, want %q", err, want)

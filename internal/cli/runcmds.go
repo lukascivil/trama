@@ -6,6 +6,7 @@ import (
 	"io"
 	"os/exec"
 	"slices"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -39,6 +40,9 @@ func warnStale(out io.Writer, ws *workspace.Workspace, names []string) {
 func exitText(err error) string {
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) {
+		if ws, ok := exitErr.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
+			return "killed by a signal (" + ws.Signal().String() + ")"
+		}
 		return fmt.Sprintf("exit %d", exitErr.ExitCode())
 	}
 	return err.Error()
@@ -74,6 +78,11 @@ func runEach(cmd *cobra.Command, args []string, kind runner.Kind, okWord string,
 		}
 		if setupFirst {
 			if err := setupIfNeeded(ws, name, out, foreground); err != nil {
+				if errors.Is(err, runner.ErrInterrupted) {
+					summary = append(summary, name+": interrupted")
+					printLines(out, summary)
+					return failed, err
+				}
 				summary = append(summary, fmt.Sprintf("%s: %v", name, err))
 				failed++
 				continue
@@ -81,6 +90,11 @@ func runEach(cmd *cobra.Command, args []string, kind runner.Kind, okWord string,
 		}
 		fmt.Fprintln(out, j.Describe())
 		if err := foreground(j); err != nil {
+			if errors.Is(err, runner.ErrInterrupted) {
+				summary = append(summary, name+": interrupted")
+				printLines(out, summary)
+				return failed, err
+			}
 			summary = append(summary, fmt.Sprintf("%s: failed (%s)", name, exitText(err)))
 			failed++
 			continue
@@ -94,10 +108,14 @@ func runEach(cmd *cobra.Command, args []string, kind runner.Kind, okWord string,
 		}
 		summary = append(summary, fmt.Sprintf("%s: %s", name, okWord))
 	}
-	for _, line := range summary {
+	printLines(out, summary)
+	return failed, nil
+}
+
+func printLines(out io.Writer, lines []string) {
+	for _, line := range lines {
 		fmt.Fprintln(out, line)
 	}
-	return failed, nil
 }
 
 func newSetupCmd() *cobra.Command {

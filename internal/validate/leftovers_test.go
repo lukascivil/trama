@@ -29,3 +29,18 @@ func TestValidateNameMessage(t *testing.T) {
 		t.Fatalf("findings = %v", fs)
 	}
 }
+
+func TestValidateTools(t *testing.T) {
+	cases := map[string]string{
+		`"npm:pkg": "1"`:   `tools.npm:pkg`,
+		`node: "24 && rm"`: `tools.node`,
+		`"-x": "1"`:        `tools.-x`,
+	}
+	for entry, where := range cases {
+		f := demo(t)
+		f.card("trama-demo-api", strings.Replace(demoAPI, `go: "1.25"`, entry, 1))
+		if fs := f.findings(); !hasError(fs, where, "") {
+			t.Errorf("%s accepted: %v", entry, fs)
+		}
+	}
+}

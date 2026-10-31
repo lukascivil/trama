@@ -18,13 +18,14 @@ func markerPath(ws *workspace.Workspace, repo string) string {
 	return filepath.Join(ws.Root, "repos", ".trama", repo+".setup")
 }
 
-// marker is "<HEAD sha> <sha256 of the setup command>".
+// marker is "<HEAD sha> <sha256 of the full command line>": the setup
+// command and the tool versions it runs with.
 func marker(j Job) string {
 	head, err := gitx.Repo{Dir: j.Dir}.RevParse("HEAD")
 	if err != nil {
 		head = "none"
 	}
-	sum := sha256.Sum256([]byte(j.Cmd))
+	sum := sha256.Sum256([]byte(strings.Join(j.Args(), "\x00")))
 	return head + " " + hex.EncodeToString(sum[:])
 }
 
