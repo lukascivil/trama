@@ -126,3 +126,10 @@ func TestOpenSteps(t *testing.T) {
 		t.Fatalf("open steps = %+v", got)
 	}
 }
+
+func TestParseTouches(t *testing.T) {
+	r, err := changes.Parse(recordID+".md", []byte(strings.Replace(record, "status: open\n", "status: open\ntouches: [\"GET /hello\"]\n", 1)))
+	if err != nil || len(r.Touches) != 1 || r.Touches[0] != "GET /hello" {
+		t.Fatalf("record = %+v, %v", r, err)
+	}
+}

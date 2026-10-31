@@ -34,8 +34,9 @@ type Record struct {
 	ID        string `yaml:"id"`
 	Title     string `yaml:"title"`
 	Status    string `yaml:"status"` // open | done
-	Continues string `yaml:"continues,omitempty"`
-	Steps     []Step `yaml:"steps"`
+	Continues string   `yaml:"continues,omitempty"`
+	Touches   []string `yaml:"touches,omitempty"` // ids the change touches, e.g. "GET /hello"
+	Steps     []Step   `yaml:"steps"`
 	Path      string `yaml:"-"` // path of the file
 
 	body string // Markdown after the front matter, kept byte for byte

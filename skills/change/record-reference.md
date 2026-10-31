@@ -10,6 +10,7 @@ One record per change that spans repositories, at `changes/<id>.md`, committed t
 | `title` | yes | One line, in the user's terms. |
 | `status` | yes | `open` until every step is `merged`, then `done`. `trama changes` sets it. |
 | `continues` | no | The `id` of an earlier record whose pending step this change completes. |
+| `touches` | yes | The ids the change touches (e.g. `["GET /hello"]`), so later changes can find this record. |
 | `steps` | yes | One entry per pull request, in merge order, plus the steps left for later. |
 
 Each step:
@@ -39,6 +40,7 @@ Each step:
 id: 2026-11-03-rename-message
 title: Rename message to greeting in GET /hello
 status: open
+touches: ["GET /hello"]
 steps:
   - order: 1
     repo: trama-demo-api
