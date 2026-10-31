@@ -149,6 +149,7 @@
   let repos = new Map();
   let selected = null; // the repo name or edge index the panel shows
   let focus = null; // the element ids kept by Focus, or null
+  let focusLevels = 1;
   const repoShown = new Map();
   const kindShown = new Map();
 
@@ -318,6 +319,7 @@
       o.value = String(n);
       levels.append(o);
     });
+    levels.value = String(focusLevels);
     button.addEventListener("click", () => setFocus(r.name, Number(levels.value)));
     const all = el("button", T.showAll);
     all.type = "button";
@@ -445,6 +447,7 @@
     if (!name) {
       focus = null;
     } else {
+      focusLevels = levels;
       let kept = cy.$id(`r:${name}`);
       for (let i = 0; i < levels; i++) kept = kept.union(kept.neighborhood());
       focus = new Set(kept.map((ele) => ele.id()));
