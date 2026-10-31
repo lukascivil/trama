@@ -66,12 +66,16 @@ func TestParseRecord(t *testing.T) {
 
 func TestParseRejects(t *testing.T) {
 	cases := map[string]string{
-		"no front matter": "## Why\n",
-		"unknown state":   strings.Replace(record, "state: pending", "state: doing", 1),
-		"id differs":      strings.Replace(record, "id: "+recordID, "id: 2026-11-03-other", 1),
-		"pending with pr": strings.Replace(record, "    state: pending", "    pr: https://x/pull/9\n    state: pending", 1),
-		"open without pr": strings.Replace(record, "    pr: https://github.com/lukascivil/trama-demo-web/pull/1\n", "", 1),
-		"unknown field":   strings.Replace(record, "status: open", "status: open\nstatsu: x", 1),
+		"no front matter":   "## Why\n",
+		"unknown state":     strings.Replace(record, "state: pending", "state: doing", 1),
+		"id differs":        strings.Replace(record, "id: "+recordID, "id: 2026-11-03-other", 1),
+		"pending with pr":   strings.Replace(record, "    state: pending", "    pr: https://x/pull/9\n    state: pending", 1),
+		"open without pr":   strings.Replace(record, "    pr: https://github.com/lukascivil/trama-demo-web/pull/1\n", "", 1),
+		"unknown field":     strings.Replace(record, "status: open", "status: open\nstatsu: x", 1),
+		"pr not a URL":      strings.Replace(record, "pr: https://github.com/lukascivil/trama-demo-api/pull/1", "pr: --web", 1),
+		"no steps":          record[:strings.Index(record, "steps:")] + "steps: []\n---\n",
+		"done with pending": strings.Replace(record, "status: open", "status: done", 1),
+		"empty action":      strings.Replace(record, "action: Remove message from GET /hello", "action: \"\"", 1),
 	}
 	for label, content := range cases {
 		path := filepath.Join("changes", recordID+".md")

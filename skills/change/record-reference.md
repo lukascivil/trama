@@ -1,6 +1,6 @@
 # Change record reference
 
-One record per change that spans repositories, at `changes/<id>.md`, committed to the workspace's main branch with `trama changes save <id>`. `trama changes` keeps the step states up to date from the pull requests; it rewrites only the front matter and never touches the text below it.
+One record per change that spans repositories, at `changes/<id>.md`, committed to the workspace's main branch with `trama changes save <id>` (directly, without a pull request; it refuses to push other unpushed workspace commits along with it). `trama changes` keeps the step states up to date from the pull requests; it rewrites only the front matter, in its own format (comments there are not kept), and never touches the text below it.
 
 ## Front matter
 
@@ -9,7 +9,7 @@ One record per change that spans repositories, at `changes/<id>.md`, committed t
 | `id` | yes | `YYYY-MM-DD-<slug>`, the file name without `.md`. The slug is lowercase words joined by `-` (e.g. `rename-message`). |
 | `title` | yes | One line, in the user's terms. |
 | `status` | yes | `open` until every step is `merged`, then `done`. `trama changes` sets it. |
-| `continues` | no | The `id` of an earlier record whose pending step this change completes. |
+| `continues` | no | The `id` of an earlier record whose pending step this change completes. That earlier record's pending step then gets the same `branch`, `pr` and `state: open`, so it closes when the pull request merges. |
 | `touches` | yes | The ids the change touches (e.g. `["GET /hello"]`), so later changes can find this record. |
 | `steps` | yes | One entry per pull request, in merge order, plus the steps left for later. |
 
@@ -21,7 +21,7 @@ Each step:
 | `repo` | yes | Repository name from `workspace.yaml`. |
 | `action` | yes | What the step does, in one line. |
 | `branch` | when it has a PR | `trama/<slug>`. |
-| `pr` | when not `pending` | The pull request URL. A `pending` step has none. |
+| `pr` | when not `pending` | The pull request URL (`https://…`). A `pending` step has none. |
 | `state` | yes | `pending` (no pull request yet), `open`, `merged` or `closed`. |
 
 ## Sections

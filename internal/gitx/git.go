@@ -255,13 +255,46 @@ func (r Repo) CommitPaths(msg string, paths ...string) (bool, error) {
 	return err == nil, err
 }
 
-// OriginHead returns the branch origin/HEAD points to, or "main".
+// OriginHead returns origin's main branch: what origin/HEAD points to, else
+// the upstream of the current branch on origin, else what the remote says,
+// else "main".
 func (r Repo) OriginHead() string {
-	out, err := run(r.Dir, "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
-	if err != nil || !strings.HasPrefix(out, "origin/") {
-		return "main"
+	if out, err := run(r.Dir, "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD"); err == nil && strings.HasPrefix(out, "origin/") {
+		return strings.TrimPrefix(out, "origin/")
 	}
-	return strings.TrimPrefix(out, "origin/")
+	if out, err := run(r.Dir, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"); err == nil && strings.HasPrefix(out, "origin/") {
+		return strings.TrimPrefix(out, "origin/")
+	}
+	if url, err := r.OriginURL(); err == nil {
+		if b, err := DefaultBranch(url); err == nil {
+			return b
+		}
+	}
+	return "main"
+}
+
+// DiffNames lists the files that differ between two revisions.
+func (r Repo) DiffNames(from, to string) ([]string, error) {
+	out, err := run(r.Dir, "diff", "--name-only", from, to, "--")
+	if err != nil || out == "" {
+		return nil, err
+	}
+	return strings.Split(out, "\n"), nil
+}
+
+// ModifiedPaths lists tracked files under paths with uncommitted changes.
+func (r Repo) ModifiedPaths(paths ...string) ([]string, error) {
+	out, err := runRaw(r.Dir, append([]string{"status", "--porcelain", "--untracked-files=no", "--"}, paths...)...)
+	if err != nil {
+		return nil, err
+	}
+	var files []string
+	for _, line := range strings.Split(string(out), "\n") { // "XY path": raw, the leading space matters
+		if len(line) > 3 {
+			files = append(files, line[3:])
+		}
+	}
+	return files, nil
 }
 
 // PushHead sends the current commit to branch on origin.

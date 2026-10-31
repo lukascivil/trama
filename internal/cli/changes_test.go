@@ -181,7 +181,7 @@ func TestChangesKeepsStateOnGhError(t *testing.T) {
 	}
 	withStates(t, func(string) (string, error) { return "", errors.New("gh: not logged in") })
 	out, err := run(t, "changes", "--dir", ws)
-	if err != nil || !strings.Contains(out, "warning:") || !strings.Contains(out, "trama-demo-api") {
+	if err == nil || !strings.Contains(out, "warning:") || !strings.Contains(out, "trama-demo-api") {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	if got := lastSubject(t, bare); got == "change: update status" {

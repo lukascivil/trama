@@ -31,13 +31,13 @@ type Step struct {
 
 // Record is one change record.
 type Record struct {
-	ID        string `yaml:"id"`
-	Title     string `yaml:"title"`
-	Status    string `yaml:"status"` // open | done
+	ID        string   `yaml:"id"`
+	Title     string   `yaml:"title"`
+	Status    string   `yaml:"status"` // open | done
 	Continues string   `yaml:"continues,omitempty"`
 	Touches   []string `yaml:"touches,omitempty"` // ids the change touches, e.g. "GET /hello"
 	Steps     []Step   `yaml:"steps"`
-	Path      string `yaml:"-"` // path of the file
+	Path      string   `yaml:"-"` // path of the file
 
 	body string // Markdown after the front matter, kept byte for byte
 }
@@ -79,8 +79,11 @@ func parse(path string, data []byte) (*Record, error) {
 	if !idPattern.MatchString(r.ID) {
 		return nil, fmt.Errorf("id %q must look like YYYY-MM-DD-<slug>", r.ID)
 	}
-	if strings.TrimSpace(r.Title) == "" {
-		return nil, errors.New("title is empty")
+	if strings.TrimSpace(r.Title) == "" || strings.Contains(r.Title, "\n") {
+		return nil, errors.New("title must be one non-empty line")
+	}
+	if len(r.Steps) == 0 {
+		return nil, errors.New("a record needs at least one step")
 	}
 	if !slices.Contains(recordState, r.Status) {
 		return nil, fmt.Errorf("status %q must be open or done", r.Status)
@@ -89,6 +92,10 @@ func parse(path string, data []byte) (*Record, error) {
 		switch {
 		case strings.TrimSpace(s.Repo) == "":
 			return nil, fmt.Errorf("steps[%d]: repo is empty", i)
+		case strings.TrimSpace(s.Action) == "":
+			return nil, fmt.Errorf("steps[%d]: action is empty", i)
+		case s.PR != "" && !strings.HasPrefix(s.PR, "https://"):
+			return nil, fmt.Errorf("steps[%d]: pr %q must be an https:// URL", i, s.PR)
 		case !slices.Contains(stepStates, s.State):
 			return nil, fmt.Errorf("steps[%d]: state %q must be one of %s", i, s.State, strings.Join(stepStates, ", "))
 		case s.State == "pending" && s.PR != "":
@@ -96,6 +103,9 @@ func parse(path string, data []byte) (*Record, error) {
 		case s.State != "pending" && s.PR == "":
 			return nil, fmt.Errorf("steps[%d]: a %s step needs its pr", i, s.State)
 		}
+	}
+	if r.Status == "done" && len(r.OpenSteps()) > 0 {
+		return nil, errors.New("status is done but some steps are not merged")
 	}
 	return r, nil
 }

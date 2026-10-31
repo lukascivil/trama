@@ -47,12 +47,13 @@ In Claude Code, from the workspace:
 - `/trama:add-repo <url>` adds a repository, clones it and maps it.
 - `/trama:map <repo>` (or `--all`) reads a repository and writes its catalog card, `catalog/<repo>.yaml`: stack, how to run it, what it provides and consumes, and the `file:line` evidence for each fact. A consumer is linked to a provider only with proof (a config value matching the provider's host or port, a package, a topic, or a link declared in `workspace.yaml`); otherwise the relation stays `from: unknown` with its candidates.
 
-Then `trama graph` writes `docs/graph.md` and the repository table in `AGENTS.md`. The skills never commit: review and commit `catalog/`, `docs/graph.md` and `AGENTS.md` yourself.
+Then `trama graph` writes `docs/graph.md` and the repository table in `AGENTS.md`. `/trama:map` never commits: review and commit `catalog/`, `docs/graph.md` and `AGENTS.md` yourself.
 
 ## Change across repositories
 
 - `/trama:impact <change>` tells, without changing anything, which repositories and lines a change affects, whether it breaks them, and the safe order to ship it (expand → migrate → contract).
 - `/trama:change <change>` writes a record in `changes/`, asks you to approve it, creates a `trama/<slug>` branch in each repository from its up-to-date main branch, makes the change, runs each repository's tests and opens linked pull requests in merge order. It never pushes to a main branch and never merges.
+- The records in `changes/` are the only thing trama commits to the workspace itself, straight to its main branch (no pull request); it refuses when other workspace commits are waiting to be pushed, and stops when the push is rejected.
 - After the merges, `trama changes` updates the record from the pull requests, and `/trama:map --all` refreshes the cards.
 
 ## Commands
@@ -72,8 +73,8 @@ Run them from anywhere inside the workspace (in your own shell, through `mise ex
 | `trama test [repo...]` | Runs `run.test` of each repository, after its setup when needed, and prints `passed` or `failed` for each. |
 | `trama up [repo...]` | Runs `run.dev` of every repository at once, each line prefixed with its name. Refuses to start when a dev port is already in use. Ctrl+C stops every process, children included. |
 | `trama uses <id>` | Lists the repositories that provide or consume an id (e.g. `"GET /hello"`), with their evidence. |
-| `trama branch <repo> <name>` | Creates a branch from the up-to-date main branch of a repository; refuses a repository with local changes. `--main` switches back. |
-| `trama pr <repo> --title T --body-file F` | Pushes the current branch and opens a pull request with `gh`. Refuses the main branch. |
+| `trama branch <repo> <name>` | Creates a branch from the up-to-date main branch of a repository; refuses a repository with local changes or on another branch. `--main` switches back. |
+| `trama pr <repo> --title T --body-file F [--draft]` | Pushes the current branch and opens a pull request with `gh`. Refuses the main branch. |
 | `trama changes [--no-push]` | Updates every open change record from its pull requests, then commits and pushes the records. `trama changes save <id>` commits and pushes one record. |
 | `trama init [dir]` | Creates the workspace files (what `/trama:init` runs). |
 | `trama version` | Prints the version. |

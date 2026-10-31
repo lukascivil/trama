@@ -70,6 +70,16 @@ func newBranchCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			current, err := repo.CurrentBranch()
+			if err != nil {
+				return err
+			}
+			if current != main {
+				if current == "" {
+					current = "a detached HEAD"
+				}
+				return fmt.Errorf("repos/%s is on %s; switch it to %s first", name, current, main)
+			}
 			if repo.BranchExists(branch) {
 				return fmt.Errorf("branch %s already exists in repos/%s", branch, name)
 			}

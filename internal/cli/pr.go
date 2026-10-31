@@ -42,6 +42,12 @@ func newPRCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if strings.TrimSpace(title) == "" {
+				return errors.New("the pull request needs a title")
+			}
+			if _, err := os.Stat(body); err != nil {
+				return fmt.Errorf("body file %s: %w", bodyFile, err)
+			}
 			if err := repo.Push(branch); err != nil {
 				return err
 			}
