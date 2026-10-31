@@ -48,12 +48,12 @@ One card per repository, at `catalog/<name>.yaml`. `trama validate` checks every
   - `package`: `kind: package` and `id` equal to the provider's `identity.package`.
   - `topic`: `kind: event` and `id` listed in the provider's `identity.topics`.
   - `declared`: `workspace.yaml` has `links: [{consumer: <this>, provider: <from>, id: <id>}]`.
-- `candidates`: with `from: unknown`, the repositories whose cards provide the same `id`.
+- `candidates`: with `from: unknown`, the repositories whose cards provide the same `id`. Leave the key out when there are none.
 - `fields_used`: optional response fields the code reads.
 
 ### config
 
-`{env, value, points_to, evidence}`: the variable name, its example value (from `.env.example` or the code's default), and the repository it points to. List it even when no `consumes` entry uses it, e.g. a CORS origin pointing to the frontend.
+`{env, value, points_to, evidence}`: the variable name, its example value (from `.env.example` or the code's default), and the repository it points to. `points_to` must be a repository of the workspace; leave it out until that repository is added. List it even when no `consumes` entry uses it, e.g. a CORS origin pointing to the frontend.
 
 ## Evidence
 

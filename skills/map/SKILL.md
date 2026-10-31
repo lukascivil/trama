@@ -28,10 +28,10 @@ Write `catalog/<name>.yaml` following `${CLAUDE_PLUGIN_ROOT}/skills/map/card-ref
 - Leave `mapped_at_commit` and `mapped_at` out: `trama stamp` writes them in step 5.
 
 Look for:
-- **provides**: HTTP routes it serves (not CORS preflight handling), events it publishes, and packages other repositories import by name: published to any registry, public or the company's private one, or a Go module path. Skip only packages marked never to be published, such as `"private": true` in `package.json`.
+- **provides**: HTTP routes it serves (not CORS preflight handling), events it publishes, and packages other repositories import by name: published to any registry, public or the company's private one, or a Go module with packages others can import (not only `main` and `internal/`). Skip only packages marked never to be published, such as `"private": true` in `package.json`.
 - **identity**: ports it listens on (cite the line that sets the address; when the code relies on a framework default, cite the line of the repository's own docs that states the port); hosts listed for it under `hosts` in `workspace.yaml` (evidence `workspace.yaml`); the package name it publishes; topics it publishes.
 - **consumes**: HTTP calls to services the company owns (a repository of this workspace, or one that could be added), events it subscribes to, internal packages it imports. Skip third-party APIs such as payment, email or cloud providers. Add `fields_used` when the code reads specific response fields.
-- **config**: environment variables that hold another service's address, with their example value. Include them even when nothing in this repository calls that service (a CORS origin, for example): they still show which repositories know about each other.
+- **config**: environment variables that hold another service's address, with their example value. Include them even when nothing in this repository calls that service (a CORS origin, for example): they still show which repositories know about each other. Set `points_to` only to a repository of this workspace; when that service is not a repository here yet, leave `points_to` out.
 - **run**, **tools** and **stack**: how to set it up, run it (with its port) and test it; the runtime versions from its version files; the languages and the main frameworks and build tools. Prefer what its own docs say.
 
 ## 4. Link consumers to providers
@@ -46,11 +46,11 @@ A matching `id` alone is not proof. Without proof, write `from: unknown` and lis
 
 When mapping several repositories, write all cards first, then revisit every `from: unknown`: a provider mapped later may now prove the link.
 
-Also look at the cards you did not write now: for every `from: unknown` whose `id` the repository you just mapped provides, check the same proof and, when it holds, set `from` and `via` there. `trama validate` warns when a mapped repository provides a pending `id`.
+Also look at the cards you did not write now: for every `from: unknown` whose `id` the repository you just mapped provides, add `points_to` to the matching `config` entry if it was left out, check the same proof and, when it holds, set `from` and `via` there. `trama validate` warns when a mapped repository provides a pending `id`. Linking edits like these do not need a new stamp.
 
 ## 5. Stamp, validate, graph
 
-1. Run `trama stamp <name>` for each card you wrote. It records the commit the card describes.
+1. Run `trama stamp <name>` for each card you wrote. It records the commit the card describes. Stamp again only when you change a card's own facts after stamping.
 2. Run `trama validate` and fix every error from the code. Never silence an error with evidence you did not read: remove the entry, or use `from: unknown`.
 3. When there are no errors, run `trama graph`.
 
