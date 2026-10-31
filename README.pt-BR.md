@@ -8,7 +8,7 @@ Empresas têm vários repositórios que dependem uns dos outros — um front que
 
 ## Status
 
-Pré-lançamento. A fase 1 de 5 está pronta: workspaces, `add`, `sync` e `status`. Fichas do catálogo, grafo de dependências, análise de impacto e mudanças entre repositórios vêm a seguir.
+Pré-lançamento. As fases 1 e 2 de 5 estão prontas: workspaces, `add`, `sync`, `status`, fichas do catálogo com evidência, validação e grafo de dependências. Rodar os repositórios, análise de impacto e mudanças entre repositórios vêm a seguir.
 
 ## Requisitos
 
@@ -40,6 +40,15 @@ catalog/ docs/ changes/
 repos/                os clones (ignorados pelo git)
 ```
 
+## Mapear os repositórios
+
+No Claude Code, a partir do workspace:
+
+- `/trama:add-repo <url>` adiciona um repositório, clona e mapeia.
+- `/trama:map <repo>` (ou `--all`) lê um repositório e escreve a ficha dele, `catalog/<repo>.yaml`: stack, como rodar, o que expõe e consome, e a evidência `arquivo:linha` de cada fato. Um consumidor só é ligado a um fornecedor com prova (um valor de configuração que bate com o host ou a porta do fornecedor, um pacote, um tópico ou um vínculo declarado no `workspace.yaml`); sem prova, a relação fica `from: unknown` com os candidatos.
+
+Depois, `trama graph` escreve o `docs/graph.md` e a tabela de repositórios no `AGENTS.md`. As skills nunca fazem commit: revise e commite `catalog/`, `docs/graph.md` e `AGENTS.md`.
+
 ## Comandos
 
 Rode de qualquer lugar dentro do workspace (no seu terminal, via `mise exec -- trama ...` ou com o mise ativado):
@@ -48,7 +57,10 @@ Rode de qualquer lugar dentro do workspace (no seu terminal, via `mise exec -- t
 |---|---|
 | `trama add <url>` | Adiciona um repositório ao `workspace.yaml`. Detecta a branch padrão. Não clona. |
 | `trama sync [repo...]` | Clona os repositórios que faltam. Busca os outros e só avança os que estão limpos e na branch principal. Nunca descarta alterações locais. |
-| `trama status [--quiet]` | Mostra branch, alterações locais, distância do remoto e estado da ficha de cada repositório. Sem rede. `--quiet` mostra só os problemas. |
+| `trama status [--quiet]` | Mostra branch, alterações locais, distância do remoto, estado da ficha e relações sem prova de cada repositório. Sem rede. `--quiet` mostra só os problemas. |
+| `trama validate` | Confere todas as fichas: campos obrigatórios, evidência que existe no clone e prova de cada relação. |
+| `trama stamp <repo>` | Grava na ficha o commit que ela descreve (`origin/<branch>`). Recusa se o clone não estiver limpo e atualizado. |
+| `trama graph` | Escreve o `docs/graph.md` (Mermaid) e a tabela entre os marcadores do `AGENTS.md`. Recusa catálogo inválido. |
 | `trama init [dir]` | Cria os arquivos do workspace (é o que o `/trama:init` roda). |
 | `trama version` | Mostra a versão. |
 

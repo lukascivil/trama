@@ -10,7 +10,7 @@ A card describes the repository's main branch, and every fact in it is proven by
 
 ## 1. Check each repository
 
-1. Run `trama sync <name>`.
+1. Run `trama sync <name>` (with `--all`, run `trama sync` once, with no name).
 2. Run `trama status`. The repository must be on its main branch, clean and `+0 -0`. If it is not, skip it and tell the user what is in the way. Never stash, reset or switch branches yourself.
 
 ## 2. Read the repository
@@ -25,13 +25,14 @@ In `repos/<name>`:
 Write `catalog/<name>.yaml` following `${CLAUDE_PLUGIN_ROOT}/skills/map/card-reference.md`. For every entry under `identity`, `provides`, `consumes` and `config`:
 - Open the file and read the line before you cite it as `path:line`, with the path relative to the repository root.
 - If you cannot point at a line, leave the entry out.
+- Leave `mapped_at_commit` and `mapped_at` out: `trama stamp` writes them in step 5.
 
 Look for:
-- **provides**: HTTP routes it serves, events it publishes, packages it publishes.
-- **identity**: ports it listens on; hosts listed for it under `hosts` in `workspace.yaml` (evidence `workspace.yaml`); the package name it publishes; topics it publishes.
+- **provides**: HTTP routes it serves (not CORS preflight handling), events it publishes, packages it publishes to a registry (a private package or internal-only code publishes nothing).
+- **identity**: ports it listens on (cite the line that sets the address; when the code relies on a framework default, cite the line of the repository's own docs that states the port); hosts listed for it under `hosts` in `workspace.yaml` (evidence `workspace.yaml`); the package name it publishes; topics it publishes.
 - **consumes**: HTTP calls to other services, events it subscribes to, internal packages it imports. Add `fields_used` when the code reads specific response fields.
-- **config**: environment variables that hold another service's address, with their example value.
-- **run** and **tools**: how to set it up, run it (with its port) and test it, and the runtime versions from its version files. Prefer what its own docs say.
+- **config**: environment variables that hold another service's address, with their example value. Include them even when nothing in this repository calls that service (a CORS origin, for example): they still show which repositories know about each other.
+- **run**, **tools** and **stack**: how to set it up, run it (with its port) and test it; the runtime versions from its version files; the languages and the main frameworks and build tools. Prefer what its own docs say.
 
 ## 4. Link consumers to providers
 
@@ -54,6 +55,6 @@ When mapping several repositories, write all cards first, then revisit every `fr
 ## 6. Report
 
 Tell the user:
-- for each repository, the relations added, removed or changed (`git diff -- catalog/` shows them);
+- for each repository, the relations added, removed or changed (`git diff -- catalog/` shows them; a card that is new, or untracked in a workspace without commits, has every relation added);
 - every `from: unknown` left, with its candidates and what would prove it (a config value, a declared host, a `links` entry);
 - that nothing was committed: they review and commit `catalog/`, `docs/graph.md` and `AGENTS.md`.

@@ -8,7 +8,7 @@ Companies have many repositories that depend on each other — a frontend that c
 
 ## Status
 
-Pre-release. Phase 1 of 5 is done: workspaces, `add`, `sync` and `status`. Catalog cards, the dependency graph, impact analysis and cross-repository changes come next.
+Pre-release. Phases 1 and 2 of 5 are done: workspaces, `add`, `sync`, `status`, catalog cards with evidence, validation and the dependency graph. Running the repositories, impact analysis and cross-repository changes come next.
 
 ## Requirements
 
@@ -40,6 +40,15 @@ catalog/ docs/ changes/
 repos/                the clones (ignored by git)
 ```
 
+## Map the repositories
+
+In Claude Code, from the workspace:
+
+- `/trama:add-repo <url>` adds a repository, clones it and maps it.
+- `/trama:map <repo>` (or `--all`) reads a repository and writes its catalog card, `catalog/<repo>.yaml`: stack, how to run it, what it provides and consumes, and the `file:line` evidence for each fact. A consumer is linked to a provider only with proof (a config value matching the provider's host or port, a package, a topic, or a link declared in `workspace.yaml`); otherwise the relation stays `from: unknown` with its candidates.
+
+Then `trama graph` writes `docs/graph.md` and the repository table in `AGENTS.md`. The skills never commit: review and commit `catalog/`, `docs/graph.md` and `AGENTS.md` yourself.
+
 ## Commands
 
 Run them from anywhere inside the workspace (in your own shell, through `mise exec -- trama ...` or with mise activated):
@@ -48,7 +57,10 @@ Run them from anywhere inside the workspace (in your own shell, through `mise ex
 |---|---|
 | `trama add <url>` | Adds a repository to `workspace.yaml`. Detects its default branch. Does not clone. |
 | `trama sync [repo...]` | Clones missing repositories. Fetches the others and fast-forwards them only when they are clean and on their main branch. Never discards local changes. |
-| `trama status [--quiet]` | Shows branch, local changes, distance from origin and catalog card state for every repository. Offline. `--quiet` prints only problems. |
+| `trama status [--quiet]` | Shows branch, local changes, distance from origin, catalog card state and unproven relations for every repository. Offline. `--quiet` prints only problems. |
+| `trama validate` | Checks every catalog card: required fields, evidence that exists in the clone, and proof for every relation. |
+| `trama stamp <repo>` | Records in the card the commit it describes (`origin/<branch>`). Refuses unless the clone is clean and up to date. |
+| `trama graph` | Writes `docs/graph.md` (Mermaid) and the table between the markers in `AGENTS.md`. Refuses an invalid catalog. |
 | `trama init [dir]` | Creates the workspace files (what `/trama:init` runs). |
 | `trama version` | Prints the version. |
 

@@ -9,10 +9,10 @@ One card per repository, at `catalog/<name>.yaml`. `trama validate` checks every
 | `version` | int | yes | Always `1`. |
 | `name` | string | yes | Same as the file name and the repository's `name` in `workspace.yaml`. |
 | `description` | string | yes | One sentence on what the repository is for, in English. |
-| `stack` | list of strings | yes | Languages and main frameworks, e.g. `[node, react, typescript]`. |
+| `stack` | list of strings | yes | Languages, main frameworks and build tools, e.g. `[node, react, typescript, vite]`. |
 | `tools` | map | no | Runtime versions from version files, e.g. `{go: "1.25"}`, `{node: "24"}`. Quote versions. |
-| `mapped_at_commit` | string | yes | Written by `trama stamp`. Never type it. |
-| `mapped_at` | string | yes | Written by `trama stamp` (`YYYY-MM-DD`). |
+| `mapped_at_commit` | string | yes | Written by `trama stamp` (the full SHA). Leave it out when you write the card; never type it. |
+| `mapped_at` | string | yes | Written by `trama stamp` (`YYYY-MM-DD`). Leave it out when you write the card. |
 | `run` | map | no | Keys `setup`, `dev`, `test`; each `{cmd: "...", port: 8080}` (`port` only for `dev`). |
 | `identity` | map | no | How other repositories recognize this one; see below. |
 | `provides` | list | no | What it offers to others; see below. |
@@ -23,9 +23,9 @@ One card per repository, at `catalog/<name>.yaml`. `trama validate` checks every
 
 | Field | Item shape | Evidence |
 |---|---|---|
-| `ports` | `{value: 8080, evidence: [...]}` | the line that sets the listen address |
+| `ports` | `{value: 8080, evidence: [...]}` | the line that sets the listen address, or, for a framework default, the line of the repository's docs that states it |
 | `hosts` | `{value: api.acme.com, evidence: [workspace.yaml]}` | only hosts listed for this repository under `hosts` in `workspace.yaml` |
-| `package` | `{value: "@acme/ui", evidence: [...]}` | the line that declares the published package name |
+| `package` | `{value: "@acme/ui", evidence: [...]}` | the line that declares the published package name; omit it for private packages and internal-only code |
 | `topics` | `{value: orders.created, evidence: [...]}` | the line that publishes to the topic |
 
 ### provides
@@ -53,7 +53,7 @@ One card per repository, at `catalog/<name>.yaml`. `trama validate` checks every
 
 ### config
 
-`{env, value, points_to, evidence}`: the variable name, its example value (from `.env.example` or the code's default), and the repository it points to.
+`{env, value, points_to, evidence}`: the variable name, its example value (from `.env.example` or the code's default), and the repository it points to. List it even when no `consumes` entry uses it, e.g. a CORS origin pointing to the frontend.
 
 ## Evidence
 
