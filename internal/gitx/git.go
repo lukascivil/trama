@@ -218,6 +218,36 @@ func (r Repo) ReadFile(rev, path string) ([]byte, error) {
 	return runRaw(r.Dir, "cat-file", "blob", f[2])
 }
 
+// Tag is a tag name and its date: the tagger's for an annotated tag, the
+// commit's for a lightweight one, in strict ISO 8601.
+type Tag struct{ Name, Date string }
+
+// TagsMerged lists the tags whose commits are reachable from ref.
+func (r Repo) TagsMerged(ref string) ([]Tag, error) {
+	out, err := run(r.Dir, "for-each-ref", "--merged="+ref, "--format=%(refname)%09%(creatordate:iso-strict)", "refs/tags")
+	if err != nil {
+		return nil, err
+	}
+	var tags []Tag
+	for _, line := range strings.Split(out, "\n") {
+		name, date, ok := strings.Cut(line, "\t")
+		if !ok {
+			continue
+		}
+		tags = append(tags, Tag{Name: strings.TrimPrefix(name, "refs/tags/"), Date: date})
+	}
+	return tags, nil
+}
+
+// CountCommits returns how many commits are in to and not in from.
+func (r Repo) CountCommits(from, to string) (int, error) {
+	out, err := run(r.Dir, "rev-list", "--count", from+".."+to, "--")
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(out)
+}
+
 // BranchExists reports whether a local branch exists.
 func (r Repo) BranchExists(branch string) bool {
 	_, err := run(r.Dir, "rev-parse", "--verify", "-q", "refs/heads/"+branch)
