@@ -10,6 +10,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/lukascivil/trama/internal/catalog"
+	"github.com/lukascivil/trama/internal/changes"
 	"github.com/lukascivil/trama/internal/gitx"
 	"github.com/lukascivil/trama/internal/workspace"
 )
@@ -197,4 +198,20 @@ func Render(w io.Writer, sts []RepoStatus, quiet bool) {
 	if len(lines) > 0 {
 		fmt.Fprintf(w, "\n%s\n", strings.Join(lines, "\n"))
 	}
+}
+
+// OpenChanges lists one line per change record whose steps are not all
+// merged, and one per record that cannot be read.
+func OpenChanges(root string) []string {
+	records, errs := changes.Load(root)
+	var lines []string
+	for _, r := range records {
+		if r.Status == "open" {
+			lines = append(lines, fmt.Sprintf("change %s: %d step(s) not merged", r.ID, len(r.OpenSteps())))
+		}
+	}
+	for _, err := range errs {
+		lines = append(lines, "change record: "+err.Error())
+	}
+	return lines
 }

@@ -241,3 +241,31 @@ func (r Repo) Push(branch string) error {
 	_, err := run(r.Dir, "push", "-q", "-u", "origin", "refs/heads/"+branch+":refs/heads/"+branch)
 	return err
 }
+
+// CommitPaths stages paths and commits only them. It reports false when
+// none of them changed.
+func (r Repo) CommitPaths(msg string, paths ...string) (bool, error) {
+	if _, err := run(r.Dir, append([]string{"add", "--"}, paths...)...); err != nil {
+		return false, err
+	}
+	if _, err := run(r.Dir, append([]string{"diff", "--cached", "--quiet", "--"}, paths...)...); err == nil {
+		return false, nil
+	}
+	_, err := run(r.Dir, append([]string{"commit", "-q", "-m", msg, "--"}, paths...)...)
+	return err == nil, err
+}
+
+// OriginHead returns the branch origin/HEAD points to, or "main".
+func (r Repo) OriginHead() string {
+	out, err := run(r.Dir, "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
+	if err != nil || !strings.HasPrefix(out, "origin/") {
+		return "main"
+	}
+	return strings.TrimPrefix(out, "origin/")
+}
+
+// PushHead sends the current commit to branch on origin.
+func (r Repo) PushHead(branch string) error {
+	_, err := run(r.Dir, "push", "-q", "origin", "HEAD:refs/heads/"+branch)
+	return err
+}

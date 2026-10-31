@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/lukascivil/trama/internal/status"
@@ -17,7 +19,15 @@ func newStatusCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			status.Render(cmd.OutOrStdout(), status.Collect(ws), quiet)
+			out := cmd.OutOrStdout()
+			status.Render(out, status.Collect(ws), quiet)
+			for _, line := range status.OpenChanges(ws.Root) {
+				if quiet {
+					fmt.Fprintf(out, "trama: %s\n", line)
+				} else {
+					fmt.Fprintf(out, "- %s\n", line)
+				}
+			}
 			return nil
 		},
 	}
