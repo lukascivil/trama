@@ -214,3 +214,30 @@ func (r Repo) ReadFile(rev, path string) ([]byte, error) {
 	}
 	return runRaw(r.Dir, "cat-file", "blob", f[2])
 }
+
+// BranchExists reports whether a local branch exists.
+func (r Repo) BranchExists(branch string) bool {
+	_, err := run(r.Dir, "rev-parse", "--verify", "-q", "refs/heads/"+branch)
+	return err == nil
+}
+
+// SwitchNew creates branch at start and switches to it.
+func (r Repo) SwitchNew(branch, start string) error {
+	_, err := run(r.Dir, "switch", "-q", "--no-track", "-c", branch, start)
+	return err
+}
+
+// Switch switches to an existing branch.
+func (r Repo) Switch(branch string) error {
+	_, err := run(r.Dir, "switch", "-q", branch)
+	return err
+}
+
+// Push sends branch to origin and sets it as upstream.
+func (r Repo) Push(branch string) error {
+	if branch == "" {
+		return errors.New("no branch to push")
+	}
+	_, err := run(r.Dir, "push", "-q", "-u", "origin", "refs/heads/"+branch+":refs/heads/"+branch)
+	return err
+}
