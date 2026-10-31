@@ -115,15 +115,26 @@ func AgentsSection(ws *workspace.Workspace, cards map[string]*catalog.Card) stri
 	return b.String()
 }
 
-// ReplaceMarked replaces what is between the trama markers and keeps the
-// rest of doc byte for byte.
+// ReplaceMarked replaces what is between the trama marker lines and keeps
+// the rest of doc byte for byte. A marker counts only as a whole line, so
+// prose that mentions it is left alone; there must be exactly one of each.
 func ReplaceMarked(doc, section string) (string, error) {
-	begin := strings.Index(doc, beginMarker)
-	end := strings.Index(doc, endMarker)
-	if begin < 0 || end < 0 || end < begin {
-		return "", errors.New("AGENTS.md needs the markers " + beginMarker + " and " + endMarker + ", in that order")
+	var begins, ends [][2]int // byte offsets of each marker line, without its newline
+	off := 0
+	for _, line := range strings.SplitAfter(doc, "\n") {
+		content := strings.TrimRight(line, "\r\n")
+		switch strings.TrimSpace(content) {
+		case beginMarker:
+			begins = append(begins, [2]int{off, off + len(content)})
+		case endMarker:
+			ends = append(ends, [2]int{off, off + len(content)})
+		}
+		off += len(line)
 	}
-	return doc[:begin+len(beginMarker)] + "\n" + section + "\n" + doc[end:], nil
+	if len(begins) != 1 || len(ends) != 1 || ends[0][0] < begins[0][1] {
+		return "", errors.New("AGENTS.md needs exactly one begin marker line (" + beginMarker + ") and one end marker line (" + endMarker + "), in that order")
+	}
+	return doc[:begins[0][1]] + "\n" + section + "\n" + doc[ends[0][0]:], nil
 }
 
 // Write loads the cards and writes docs/graph.md and the AGENTS.md section.
@@ -149,13 +160,39 @@ func Write(ws *workspace.Workspace) error {
 		return err
 	}
 	rels, pending := Build(ws, cards)
-	if err := os.MkdirAll(filepath.Join(ws.Root, "docs"), 0o755); err != nil {
+	docs := filepath.Join(ws.Root, "docs")
+	if fi, err := os.Lstat(docs); err == nil && !fi.IsDir() {
+		return errors.New("docs is not a directory (a symbolic link?): refusing to write outside the workspace")
+	}
+	if err := os.MkdirAll(docs, 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(ws.Root, "docs", "graph.md"), []byte(Doc(ws, rels, pending)), 0o644); err != nil {
+	if err := replaceFile(filepath.Join(docs, "graph.md"), []byte(Doc(ws, rels, pending))); err != nil {
 		return err
 	}
-	return os.WriteFile(agentsPath, []byte(updated), 0o644)
+	return replaceFile(agentsPath, []byte(updated))
+}
+
+// replaceFile writes data to a new file next to path and renames it over
+// path, so a symbolic link at path is replaced instead of followed.
+func replaceFile(path string, data []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".trama-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Chmod(0o644); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
 }
 
 func orDash(items []string) string {

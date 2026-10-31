@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/lukascivil/trama/internal/catalog"
+	"github.com/lukascivil/trama/internal/gitx"
 	"github.com/lukascivil/trama/internal/workspace"
 )
 
@@ -51,9 +52,8 @@ func checkCard(ws *workspace.Workspace, repo workspace.Repo, c *catalog.Card, re
 		}
 	}
 
-	ev := evidenceChecker{ws: ws, repo: repo, rep: rep}
-	if _, err := os.Stat(filepath.Join(ws.Root, "repos", repo.Name)); err != nil {
-		ev.notCloned = true
+	ev := newEvidenceChecker(ws, repo, rep)
+	if ev.notCloned {
 		rep.warnf("", "%s is not cloned: evidence not checked", repoPath(repo.Name))
 	}
 
@@ -62,7 +62,8 @@ func checkCard(ws *workspace.Workspace, repo workspace.Repo, c *catalog.Card, re
 	}
 	for i, h := range c.Identity.Hosts {
 		where := fmt.Sprintf("identity.hosts[%d]", i)
-		if ev.check(where, h.Evidence, true) && !slices.Contains(repo.Hosts, h.Value) {
+		declared := slices.ContainsFunc(h.Evidence, func(e string) bool { return strings.TrimSpace(e) == "workspace.yaml" })
+		if ev.check(where, h.Evidence, true) && declared && !slices.Contains(repo.Hosts, h.Value) {
 			rep.errorf(where, "host %s is not declared for %s in workspace.yaml", h.Value, repo.Name)
 		}
 	}
@@ -107,15 +108,67 @@ func checkKindID(rep report, where, kind, id string) {
 }
 
 type evidenceChecker struct {
-	ws        *workspace.Workspace
-	repo      workspace.Repo
 	rep       report
 	notCloned bool
+	place     string                            // where files are read from, for messages
+	read      func(path string) ([]byte, error) // reads a file the card cites
+	cache     map[string]readResult
+}
+
+type readResult struct {
+	data []byte
+	err  error
+}
+
+// newEvidenceChecker reads cited files from origin/<branch> when the clone
+// is a git repository that has it, so a local branch, local edits or ignored
+// files never change the result. A plain directory is read from disk.
+func newEvidenceChecker(ws *workspace.Workspace, repo workspace.Repo, rep report) *evidenceChecker {
+	e := &evidenceChecker{rep: rep, cache: map[string]readResult{}}
+	dir := filepath.Join(ws.Root, "repos", repo.Name)
+	if _, err := os.Stat(dir); err != nil {
+		e.notCloned = true
+		return e
+	}
+	g := gitx.Repo{Dir: dir}
+	rev := "origin/" + repo.Branch
+	if g.IsRepo() {
+		if _, err := g.RevParse(rev); err == nil {
+			e.place = repoPath(repo.Name) + " at " + rev
+			e.read = func(path string) ([]byte, error) { return g.ReadFile(rev, path) }
+			return e
+		}
+	}
+	e.place = repoPath(repo.Name)
+	e.read = func(path string) ([]byte, error) { return readRegular(dir, path) }
+	return e
+}
+
+// readRegular reads dir/path from disk, refusing anything but a regular file.
+func readRegular(dir, path string) ([]byte, error) {
+	full := filepath.Join(dir, filepath.FromSlash(path))
+	fi, err := os.Lstat(full)
+	if err != nil {
+		return nil, fmt.Errorf("%s does not exist", path)
+	}
+	if !fi.Mode().IsRegular() {
+		return nil, fmt.Errorf("%s is not a regular file", path)
+	}
+	return os.ReadFile(full)
+}
+
+func (e *evidenceChecker) load(path string) ([]byte, error) {
+	if r, ok := e.cache[path]; ok {
+		return r.data, r.err
+	}
+	data, err := e.read(path)
+	e.cache[path] = readResult{data, err}
+	return data, err
 }
 
 // check validates an evidence list and reports whether it holds only
 // well-formed entries. declaredOK allows the literal "workspace.yaml".
-func (e evidenceChecker) check(where string, list []string, declaredOK bool) bool {
+func (e *evidenceChecker) check(where string, list []string, declaredOK bool) bool {
 	if len(list) == 0 {
 		e.rep.errorf(where, "no evidence")
 		return false
@@ -138,10 +191,9 @@ func (e evidenceChecker) check(where string, list []string, declaredOK bool) boo
 		if e.notCloned {
 			continue
 		}
-		full := filepath.Join(e.ws.Root, "repos", e.repo.Name, filepath.FromSlash(ev.Path))
-		data, err := os.ReadFile(full)
+		data, err := e.load(ev.Path)
 		if err != nil {
-			e.rep.errorf(where, "evidence %s: %s does not exist in %s", raw, ev.Path, repoPath(e.repo.Name))
+			e.rep.errorf(where, "evidence %s: %s (in %s)", raw, err, e.place)
 			ok = false
 			continue
 		}

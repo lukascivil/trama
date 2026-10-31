@@ -25,7 +25,7 @@ One card per repository, at `catalog/<name>.yaml`. `trama validate` checks every
 |---|---|---|
 | `ports` | `{value: 8080, evidence: [...]}` | the line that sets the listen address, or, for a framework default, the line of the repository's docs that states it |
 | `hosts` | `{value: api.acme.com, evidence: [workspace.yaml]}` | only hosts listed for this repository under `hosts` in `workspace.yaml` |
-| `package` | `{value: "@acme/ui", evidence: [...]}` | the line that declares the published package name; omit it for private packages and internal-only code |
+| `package` | `{value: "@acme/ui", evidence: [...]}` | the line that declares the package name other repositories import (any registry, including the company's private one, or a Go module path); omit it only for packages marked never to be published, such as `"private": true` |
 | `topics` | `{value: orders.created, evidence: [...]}` | the line that publishes to the topic |
 
 ### provides

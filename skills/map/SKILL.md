@@ -28,9 +28,9 @@ Write `catalog/<name>.yaml` following `${CLAUDE_PLUGIN_ROOT}/skills/map/card-ref
 - Leave `mapped_at_commit` and `mapped_at` out: `trama stamp` writes them in step 5.
 
 Look for:
-- **provides**: HTTP routes it serves (not CORS preflight handling), events it publishes, packages it publishes to a registry (a private package or internal-only code publishes nothing).
+- **provides**: HTTP routes it serves (not CORS preflight handling), events it publishes, and packages other repositories import by name: published to any registry, public or the company's private one, or a Go module path. Skip only packages marked never to be published, such as `"private": true` in `package.json`.
 - **identity**: ports it listens on (cite the line that sets the address; when the code relies on a framework default, cite the line of the repository's own docs that states the port); hosts listed for it under `hosts` in `workspace.yaml` (evidence `workspace.yaml`); the package name it publishes; topics it publishes.
-- **consumes**: HTTP calls to other services, events it subscribes to, internal packages it imports. Add `fields_used` when the code reads specific response fields.
+- **consumes**: HTTP calls to services the company owns (a repository of this workspace, or one that could be added), events it subscribes to, internal packages it imports. Skip third-party APIs such as payment, email or cloud providers. Add `fields_used` when the code reads specific response fields.
 - **config**: environment variables that hold another service's address, with their example value. Include them even when nothing in this repository calls that service (a CORS origin, for example): they still show which repositories know about each other.
 - **run**, **tools** and **stack**: how to set it up, run it (with its port) and test it; the runtime versions from its version files; the languages and the main frameworks and build tools. Prefer what its own docs say.
 
@@ -45,6 +45,8 @@ Read the other cards in `catalog/`. A consume gets `from: <repo>` only with its 
 A matching `id` alone is not proof. Without proof, write `from: unknown` and list in `candidates` the repositories whose cards provide the same `id`.
 
 When mapping several repositories, write all cards first, then revisit every `from: unknown`: a provider mapped later may now prove the link.
+
+Also look at the cards you did not write now: for every `from: unknown` whose `id` the repository you just mapped provides, check the same proof and, when it holds, set `from` and `via` there. `trama validate` warns when a mapped repository provides a pending `id`.
 
 ## 5. Stamp, validate, graph
 

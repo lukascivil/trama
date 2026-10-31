@@ -42,6 +42,12 @@ func sshCommandConfigured(dir string) bool {
 }
 
 func run(dir string, args ...string) (string, error) {
+	out, err := runRaw(dir, args...)
+	return strings.TrimSpace(string(out)), err
+}
+
+// runRaw runs git and returns stdout untouched.
+func runRaw(dir string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
 	cmd.Env = gitEnv(dir)
@@ -53,9 +59,9 @@ func run(dir string, args ...string) (string, error) {
 		if msg == "" {
 			msg = err.Error()
 		}
-		return "", fmt.Errorf("git %s: %s", strings.Join(args, " "), msg)
+		return nil, fmt.Errorf("git %s: %s", strings.Join(args, " "), msg)
 	}
-	return strings.TrimSpace(stdout.String()), nil
+	return stdout.Bytes(), nil
 }
 
 // Init creates a repository in dir whose first branch is branch.
@@ -188,4 +194,23 @@ func (r Repo) AheadBehind(local, upstream string) (ahead, behind int, err error)
 		return 0, 0, err
 	}
 	return ahead, behind, nil
+}
+
+// ReadFile returns the content of path at rev, without touching the working
+// tree. It refuses anything that is not a regular file there (symlinks,
+// directories, submodules), so it never reads outside the repository.
+func (r Repo) ReadFile(rev, path string) ([]byte, error) {
+	out, err := run(r.Dir, "ls-tree", "-z", rev, "--", path)
+	if err != nil {
+		return nil, err
+	}
+	if out == "" {
+		return nil, fmt.Errorf("%s does not exist at %s", path, rev)
+	}
+	meta, _, _ := strings.Cut(out, "\t")
+	f := strings.Fields(meta)
+	if len(f) != 3 || f[1] != "blob" || (f[0] != "100644" && f[0] != "100755") {
+		return nil, fmt.Errorf("%s is not a regular file at %s", path, rev)
+	}
+	return runRaw(r.Dir, "cat-file", "blob", f[2])
 }

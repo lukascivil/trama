@@ -63,6 +63,19 @@ func checkConsume(ws *workspace.Workspace, l loaded, name string, c *catalog.Car
 		} else {
 			rep.warnf(where, "no proven provider (candidates: %s)", strings.Join(cs.Candidates, ", "))
 		}
+		var missing []string
+		for _, p := range providers(ws, l, name, cs) {
+			if !slices.Contains(cs.Candidates, p) {
+				missing = append(missing, p)
+			}
+		}
+		if len(missing) > 0 {
+			verb := "provides"
+			if len(missing) > 1 {
+				verb = "provide"
+			}
+			rep.warnf(where, "from: unknown, but %s %s %s: check the proof and link it, or list it in candidates", strings.Join(missing, ", "), verb, cs.ID)
+		}
 		return false
 	}
 
@@ -91,8 +104,19 @@ func checkConsume(ws *workspace.Workspace, l loaded, name string, c *catalog.Car
 	case "":
 		rep.errorf(where, "from needs proof in via")
 	case "env":
-		if !envProof(c, from, pc) {
+		values := envValues(c, from, pc)
+		if len(values) == 0 {
 			rep.errorf(where, "via env: no config entry points to %s with a value matching its identity", from)
+			break
+		}
+		var others []string
+		for _, p := range providers(ws, l, name, cs) {
+			if p != from && slices.ContainsFunc(values, func(v string) bool { return valueMatches(v, l.cards[p].Identity) }) {
+				others = append(others, p)
+			}
+		}
+		if len(others) > 0 {
+			rep.errorf(where, "via env: the value matches %s and %s, which all provide %s: use from: unknown with candidates, or a declared link", from, strings.Join(others, ", "), cs.ID)
 		}
 	case "package":
 		if cs.Kind != "package" || pc.Identity.Package == nil || pc.Identity.Package.Value != cs.ID {
@@ -113,15 +137,32 @@ func checkConsume(ws *workspace.Workspace, l loaded, name string, c *catalog.Car
 	return true
 }
 
-// envProof reports whether a config entry of c points to provider with a
-// value whose host or port matches the provider's identity.
-func envProof(c *catalog.Card, provider string, pc *catalog.Card) bool {
+// envValues returns the config values of c that point to provider and
+// match the provider's identity by host or port.
+func envValues(c *catalog.Card, provider string, pc *catalog.Card) []string {
+	var out []string
 	for _, cf := range c.Config {
 		if cf.PointsTo == provider && valueMatches(cf.Value, pc.Identity) {
-			return true
+			out = append(out, cf.Value)
 		}
 	}
-	return false
+	return out
+}
+
+// providers lists, in workspace order, the mapped repositories other than
+// name whose cards provide the same kind and id as cs.
+func providers(ws *workspace.Workspace, l loaded, name string, cs catalog.Consume) []string {
+	var out []string
+	for _, r := range ws.Repos {
+		pc := l.cards[r.Name]
+		if r.Name == name || pc == nil {
+			continue
+		}
+		if slices.ContainsFunc(pc.Provides, func(p catalog.Provide) bool { return p.Kind == cs.Kind && p.ID == cs.ID }) {
+			out = append(out, r.Name)
+		}
+	}
+	return out
 }
 
 func valueMatches(value string, id catalog.Identity) bool {
