@@ -45,9 +45,10 @@ func exitText(err error) string {
 }
 
 // runEach runs run.<kind> of each target repository in turn, then prints one
-// summary line per repository. onOK runs after each success. It returns how
-// many repositories failed.
-func runEach(cmd *cobra.Command, args []string, kind runner.Kind, okWord string, onOK func(*workspace.Workspace, runner.Job) error) (int, error) {
+// summary line per repository. With setupFirst, each repository's setup runs
+// first when needed. onOK runs after each success. It returns how many
+// repositories failed.
+func runEach(cmd *cobra.Command, args []string, kind runner.Kind, okWord string, setupFirst bool, onOK func(*workspace.Workspace, runner.Job) error) (int, error) {
 	ws, err := loadWorkspace(cmd)
 	if err != nil {
 		return 0, err
@@ -68,8 +69,18 @@ func runEach(cmd *cobra.Command, args []string, kind runner.Kind, okWord string,
 			failed++
 			continue
 		}
+		foreground := func(j runner.Job) error {
+			return runner.Run(cmd.Context(), j, cmd.InOrStdin(), out, cmd.ErrOrStderr())
+		}
+		if setupFirst {
+			if err := setupIfNeeded(ws, name, out, foreground); err != nil {
+				summary = append(summary, fmt.Sprintf("%s: %v", name, err))
+				failed++
+				continue
+			}
+		}
 		fmt.Fprintln(out, j.Describe())
-		if err := runner.Run(cmd.Context(), j, cmd.InOrStdin(), out, cmd.ErrOrStderr()); err != nil {
+		if err := foreground(j); err != nil {
 			summary = append(summary, fmt.Sprintf("%s: failed (%s)", name, exitText(err)))
 			failed++
 			continue
@@ -94,7 +105,7 @@ func newSetupCmd() *cobra.Command {
 		Use:   "setup [repo...]",
 		Short: "Run run.setup from each repository's catalog card (e.g. npm install)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			failed, err := runEach(cmd, args, runner.Setup, "ok", runner.MarkSetup)
+			failed, err := runEach(cmd, args, runner.Setup, "ok", false, runner.MarkSetup)
 			if err != nil {
 				return err
 			}
@@ -109,9 +120,9 @@ func newSetupCmd() *cobra.Command {
 func newTestCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "test [repo...]",
-		Short: "Run run.test from each repository's catalog card",
+		Short: "Run run.test from each repository's catalog card, after its setup when needed",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			failed, err := runEach(cmd, args, runner.Test, "passed", nil)
+			failed, err := runEach(cmd, args, runner.Test, "passed", true, nil)
 			if err != nil {
 				return err
 			}

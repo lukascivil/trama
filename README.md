@@ -63,7 +63,7 @@ Run them from anywhere inside the workspace (in your own shell, through `mise ex
 | `trama graph` | Writes `docs/graph.md` (Mermaid) and the table between the markers in `AGENTS.md`. Refuses an invalid catalog. |
 | `trama setup [repo...]` | Runs `run.setup` from each card (e.g. `npm install`) and remembers it, so `dev` and `up` only repeat it after new commits or a new command. |
 | `trama dev <repo>` | Runs `run.dev` in the foreground, after the setup when needed, with the card's runtime versions through `mise exec`. |
-| `trama test [repo...]` | Runs `run.test` of each repository and prints `passed` or `failed` for each. |
+| `trama test [repo...]` | Runs `run.test` of each repository, after its setup when needed, and prints `passed` or `failed` for each. |
 | `trama up [repo...]` | Runs `run.dev` of every repository at once, each line prefixed with its name. Refuses to start when a dev port is already in use. Ctrl+C stops every process, children included. |
 | `trama init [dir]` | Creates the workspace files (what `/trama:init` runs). |
 | `trama version` | Prints the version. |

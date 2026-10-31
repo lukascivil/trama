@@ -68,3 +68,11 @@ func TestTestCommandPasses(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 }
+
+func TestTestRunsSetupFirst(t *testing.T) {
+	ws := runWorkspace(t, "run:\n  setup: { cmd: \"touch installed\" }\n  test: { cmd: \"test -f installed\" }\n")
+	out, err := run(t, "test", "--dir", ws)
+	if err != nil || !strings.Contains(out, "$ touch installed  (in repos/api)") || !strings.Contains(out, "api: passed") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}
