@@ -6,7 +6,7 @@ One record per change that spans repositories, at `changes/<id>.md`, committed t
 
 | Field | Required | Notes |
 |---|---|---|
-| `id` | yes | `YYYY-MM-DD-<slug>`, the file name without `.md`. The slug is lowercase words joined by `-` (e.g. `rename-message`). |
+| `id` | yes | `YYYY-MM-DD-<slug>`, the file name without `.md`. The slug is lowercase ASCII words joined by `-` (e.g. `rename-message`), in the language of the repositories' code, since it also names the branches. |
 | `title` | yes | One line, in the user's terms. |
 | `status` | yes | `open` until every step is `merged`, then `done`. `trama changes` sets it. |
 | `continues` | no | The `id` of an earlier record whose pending step this change completes. That earlier record's pending step then gets the same `branch`, `pr` and `state: open`, so it closes when the pull request merges. |
@@ -26,8 +26,10 @@ Each step:
 
 ## Sections
 
+In this order, with the headings in the record's language (the names below are the English ones):
+
 - `## Why`: the request and the reason for it.
-- `## Impact`: the answer of `/trama:impact`: repositories, `path:line`, breaking or compatible.
+- `## Impact`: the answer of `/trama:impact`: repositories, `path:line`, breaking or compatible, and the tests that cannot catch the break, as a risk.
 - `## Plan`: the steps in order, expand → migrate → contract.
 - `## Execution`: branch, pull requests, tests that ran.
 - `## Pending`: steps left for later and when they can happen.
@@ -68,6 +70,7 @@ The greeting field should be called `greeting`, not `message`.
 
 - `trama-demo-web` reads `message` at `src/api/hello.ts:15`: breaking.
 - No other repository uses `GET /hello`.
+- Risk: `src/api/hello.test.ts` mocks `GET /hello`, so it cannot catch the break.
 
 ## Plan
 

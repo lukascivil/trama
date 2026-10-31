@@ -77,7 +77,7 @@ Run them from anywhere inside the workspace (in your own shell, through `mise ex
 | `trama pr <repo> --title T --body-file F [--draft]` | Pushes the current branch and opens a pull request with `gh`. Refuses the main branch. |
 | `trama changes [--no-push]` | Updates every open change record from its pull requests, then commits and pushes the records. `trama changes save <id>` commits and pushes one record. |
 | `trama init [dir]` | Creates the workspace files (what `/trama:init` runs). |
-| `trama version` | Prints the version. |
+| `trama version`, `trama --version` | Prints the version. |
 
 ## Development
 

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -188,8 +189,18 @@ func newChangesSaveCmd() *cobra.Command {
 				}
 				return fmt.Errorf("no change record %s", rel)
 			}
+			// Compare with the committed version to say what this save changes.
+			summary := "update record"
+			data, err := repo.ReadFile("HEAD", rel)
+			if err == nil {
+				if old, err := changes.Parse(rel, data); err == nil {
+					summary = changes.Summary(old, rec)
+				}
+			} else if _, noHead := repo.RevParse("HEAD"); errors.Is(err, gitx.ErrNotExist) || noHead != nil {
+				summary = changes.Summary(nil, rec)
+			}
 			out := cmd.OutOrStdout()
-			if err := commitRecords(repo, main, out, fmt.Sprintf("change: %s (%s)", rec.Title, rec.ID), []string{rel}, true); err != nil {
+			if err := commitRecords(repo, main, out, fmt.Sprintf("change: %s: %s", rec.ID, summary), []string{rel}, true); err != nil {
 				return err
 			}
 			fmt.Fprintf(out, "saved %s\n", id)

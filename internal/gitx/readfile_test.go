@@ -1,11 +1,13 @@
 package gitx_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/lukascivil/trama/internal/gitx"
 	"github.com/lukascivil/trama/internal/testutil"
 )
 
@@ -17,7 +19,7 @@ func TestReadFileAtRevision(t *testing.T) {
 	if err != nil || string(got) != "\n\nthird\n" {
 		t.Fatalf("ReadFile = %q, %v", got, err)
 	}
-	if _, err := r.ReadFile("origin/main", "missing.txt"); err == nil || !strings.Contains(err.Error(), "does not exist") {
+	if _, err := r.ReadFile("origin/main", "missing.txt"); !errors.Is(err, gitx.ErrNotExist) || err.Error() != "missing.txt does not exist at origin/main" {
 		t.Fatalf("missing file: err = %v", err)
 	}
 }

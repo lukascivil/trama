@@ -31,9 +31,11 @@ func newRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "trama",
 		Short:         "Local meta-harness for many repositories",
+		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	root.SetVersionTemplate("{{.Version}}\n")
 	root.PersistentFlags().StringP("dir", "C", "", "run as if trama was started in this directory")
 	root.AddCommand(newVersionCmd(), newInitCmd(), newAddCmd(), newSyncCmd(), newStatusCmd(), newValidateCmd(), newStampCmd(), newGraphCmd(), newSetupCmd(), newTestCmd(), newDevCmd(), newUpCmd(), newUsesCmd(), newBranchCmd(), newPRCmd(), newChangesCmd())
 	return root

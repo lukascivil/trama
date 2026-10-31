@@ -23,6 +23,9 @@ var ErrDiverged = errors.New("cannot fast-forward: local branch diverged from or
 // ErrNoUpstream means origin has no branch with the requested name.
 var ErrNoUpstream = errors.New("origin has no such branch")
 
+// ErrNotExist means a path does not exist at a revision.
+var ErrNotExist = errors.New("does not exist")
+
 // gitEnv is the environment of every git command run in dir.
 func gitEnv(dir string) []string {
 	env := append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=", "LC_ALL=C")
@@ -205,7 +208,7 @@ func (r Repo) ReadFile(rev, path string) ([]byte, error) {
 		return nil, err
 	}
 	if out == "" {
-		return nil, fmt.Errorf("%s does not exist at %s", path, rev)
+		return nil, fmt.Errorf("%s %w at %s", path, ErrNotExist, rev)
 	}
 	meta, _, _ := strings.Cut(out, "\t")
 	f := strings.Fields(meta)

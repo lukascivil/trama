@@ -72,11 +72,85 @@ func TestSaveCommitsAndPushes(t *testing.T) {
 	if err != nil || !strings.Contains(out, "saved "+changeID) {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	if got := lastSubject(t, bare); got != "change: Rename message to greeting in GET /hello ("+changeID+")" {
+	if got := lastSubject(t, bare); got != "change: "+changeID+`: plan "Rename message to greeting in GET /hello"` {
 		t.Fatalf("remote subject = %q", got)
 	}
 	if files := testutil.Git(t, bare, "show", "--name-only", "--format=", "main"); files != "changes/"+changeID+".md" {
 		t.Fatalf("committed files = %q", files)
+	}
+}
+
+func TestSaveDescribesEachUpdate(t *testing.T) {
+	ws, bare := changesWorkspace(t)
+	if _, err := run(t, "changes", "save", changeID, "--dir", ws); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(ws, "changes", changeID+".md")
+	edit := func(old, new string) {
+		t.Helper()
+		data, err := os.ReadFile(path)
+		if err != nil || !strings.Contains(string(data), old) {
+			t.Fatalf("%v: %q not in record", err, old)
+		}
+		if err := os.WriteFile(path, []byte(strings.Replace(string(data), old, new, 1)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, tt := range []struct{ old, new, want string }{
+		{"action: Remove message, state: pending}", `action: Remove message, branch: trama/remove-message, pr: "https://github.com/lukascivil/trama-demo-api/pull/2", state: open}`, "step 3 open (trama-demo-api)"},
+		{"Say greeting.", "Say greeting, not message.", "update record"},
+	} {
+		edit(tt.old, tt.new)
+		if _, err := run(t, "changes", "save", changeID, "--dir", ws); err != nil {
+			t.Fatal(err)
+		}
+		if got := lastSubject(t, bare); got != "change: "+changeID+": "+tt.want {
+			t.Fatalf("remote subject = %q, want suffix %q", got, tt.want)
+		}
+	}
+}
+
+func TestSaveOverBrokenCommittedRecord(t *testing.T) {
+	ws, bare := changesWorkspace(t)
+	path := filepath.Join(ws, "changes", changeID+".md")
+	if err := os.WriteFile(path, []byte("no front matter\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testutil.Git(t, ws, "add", "changes")
+	testutil.Git(t, ws, "commit", "-q", "-m", "broken")
+	if err := os.WriteFile(path, []byte(changeRecord), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "changes", "save", changeID, "--dir", ws); err != nil {
+		t.Fatal(err)
+	}
+	if got := lastSubject(t, bare); got != "change: "+changeID+": update record" {
+		t.Fatalf("remote subject = %q", got)
+	}
+}
+
+func TestSaveOverSymlinkedCommittedRecord(t *testing.T) {
+	ws, bare := changesWorkspace(t)
+	path := filepath.Join(ws, "changes", changeID+".md")
+	if err := os.Rename(path, filepath.Join(ws, "changes", "record.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("record.txt", path); err != nil {
+		t.Fatal(err)
+	}
+	testutil.Git(t, ws, "add", "-A")
+	testutil.Git(t, ws, "commit", "-q", "-m", "linked")
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(changeRecord), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "changes", "save", changeID, "--dir", ws); err != nil {
+		t.Fatal(err)
+	}
+	if got := lastSubject(t, bare); got != "change: "+changeID+": update record" {
+		t.Fatalf("remote subject = %q", got)
 	}
 }
 

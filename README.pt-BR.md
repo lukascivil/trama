@@ -77,7 +77,7 @@ Rode de qualquer lugar dentro do workspace (no seu terminal, via `mise exec -- t
 | `trama pr <repo> --title T --body-file F [--draft]` | Envia a branch atual e abre um PR com o `gh`. Recusa a branch principal. |
 | `trama changes [--no-push]` | Atualiza cada registro de mudança aberto a partir dos PRs, depois commita e envia os registros. `trama changes save <id>` commita e envia um registro. |
 | `trama init [dir]` | Cria os arquivos do workspace (é o que o `/trama:init` roda). |
-| `trama version` | Mostra a versão. |
+| `trama version`, `trama --version` | Mostra a versão. |
 
 ## Desenvolvimento
 
