@@ -57,6 +57,9 @@ func TestInitCreatesLayout(t *testing.T) {
 	if !strings.Contains(agents, "<!-- trama:begin -->") || !strings.Contains(agents, "<!-- trama:end -->") {
 		t.Fatalf("AGENTS.md lacks generated-section markers:\n%s", agents)
 	}
+	if !strings.Contains(agents, "## Running") || !strings.Contains(agents, "`trama up`") {
+		t.Fatalf("AGENTS.md lacks the Running section:\n%s", agents)
+	}
 	var settings struct {
 		EnabledPlugins map[string]bool `json:"enabledPlugins"`
 	}

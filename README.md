@@ -8,7 +8,7 @@ Companies have many repositories that depend on each other — a frontend that c
 
 ## Status
 
-Pre-release. Phases 1 and 2 of 5 are done: workspaces, `add`, `sync`, `status`, catalog cards with evidence, validation and the dependency graph. Running the repositories, impact analysis and cross-repository changes come next.
+Pre-release. Phases 1 to 3 of 5 are done: workspaces, `add`, `sync`, `status`, catalog cards with evidence, validation, the dependency graph, and running the repositories (`setup`, `dev`, `test`, `up`). Impact analysis and cross-repository changes come next.
 
 ## Requirements
 
@@ -61,6 +61,10 @@ Run them from anywhere inside the workspace (in your own shell, through `mise ex
 | `trama validate` | Checks every catalog card: required fields, evidence that exists in the clone, and proof for every relation. |
 | `trama stamp <repo>` | Records in the card the commit it describes (`origin/<branch>`). Refuses unless the clone is clean and up to date. |
 | `trama graph` | Writes `docs/graph.md` (Mermaid) and the table between the markers in `AGENTS.md`. Refuses an invalid catalog. |
+| `trama setup [repo...]` | Runs `run.setup` from each card (e.g. `npm install`) and remembers it, so `dev` and `up` only repeat it after new commits or a new command. |
+| `trama dev <repo>` | Runs `run.dev` in the foreground, after the setup when needed, with the card's runtime versions through `mise exec`. |
+| `trama test [repo...]` | Runs `run.test` of each repository and prints `passed` or `failed` for each. |
+| `trama up [repo...]` | Runs `run.dev` of every repository at once, each line prefixed with its name. Refuses to start when a dev port is already in use. Ctrl+C stops every process, children included. |
 | `trama init [dir]` | Creates the workspace files (what `/trama:init` runs). |
 | `trama version` | Prints the version. |
 

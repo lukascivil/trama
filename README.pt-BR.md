@@ -8,7 +8,7 @@ Empresas têm vários repositórios que dependem uns dos outros — um front que
 
 ## Status
 
-Pré-lançamento. As fases 1 e 2 de 5 estão prontas: workspaces, `add`, `sync`, `status`, fichas do catálogo com evidência, validação e grafo de dependências. Rodar os repositórios, análise de impacto e mudanças entre repositórios vêm a seguir.
+Pré-lançamento. As fases 1 a 3 de 5 estão prontas: workspaces, `add`, `sync`, `status`, fichas do catálogo com evidência, validação, grafo de dependências e rodar os repositórios (`setup`, `dev`, `test`, `up`). Análise de impacto e mudanças entre repositórios vêm a seguir.
 
 ## Requisitos
 
@@ -61,6 +61,10 @@ Rode de qualquer lugar dentro do workspace (no seu terminal, via `mise exec -- t
 | `trama validate` | Confere todas as fichas: campos obrigatórios, evidência que existe no clone e prova de cada relação. |
 | `trama stamp <repo>` | Grava na ficha o commit que ela descreve (`origin/<branch>`). Recusa se o clone não estiver limpo e atualizado. |
 | `trama graph` | Escreve o `docs/graph.md` (Mermaid) e a tabela entre os marcadores do `AGENTS.md`. Recusa catálogo inválido. |
+| `trama setup [repo...]` | Roda o `run.setup` de cada ficha (ex.: `npm install`) e lembra disso, para que `dev` e `up` só repitam depois de commits novos ou de um comando novo. |
+| `trama dev <repo>` | Roda o `run.dev` em primeiro plano, depois do setup quando preciso, com as versões de runtime da ficha via `mise exec`. |
+| `trama test [repo...]` | Roda o `run.test` de cada repositório e mostra `passed` ou `failed` para cada um. |
+| `trama up [repo...]` | Roda o `run.dev` de todos os repositórios ao mesmo tempo, cada linha com o nome do repositório. Recusa subir se uma porta de dev já estiver em uso. Ctrl+C para todos os processos, inclusive os filhos. |
 | `trama init [dir]` | Cria os arquivos do workspace (é o que o `/trama:init` roda). |
 | `trama version` | Mostra a versão. |
 
