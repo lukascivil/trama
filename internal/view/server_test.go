@@ -102,3 +102,29 @@ func TestServerDoesNotReadDisk(t *testing.T) {
 		}
 	}
 }
+
+func TestServerRejectsOtherSites(t *testing.T) {
+	h := handler(nil)
+	for _, site := range []string{"cross-site", "same-site"} {
+		req := httptest.NewRequest("GET", "/api/workspace", nil)
+		req.Host = "127.0.0.1:7300"
+		req.Header.Set("Sec-Fetch-Site", site)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != 403 {
+			t.Errorf("Sec-Fetch-Site %s: %d, want 403", site, rec.Code)
+		}
+	}
+	for _, site := range []string{"same-origin", "none", ""} {
+		req := httptest.NewRequest("GET", "/api/workspace", nil)
+		req.Host = "127.0.0.1:7300"
+		if site != "" {
+			req.Header.Set("Sec-Fetch-Site", site)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != 200 {
+			t.Errorf("Sec-Fetch-Site %q: %d, want 200", site, rec.Code)
+		}
+	}
+}

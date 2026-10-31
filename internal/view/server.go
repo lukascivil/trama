@@ -50,6 +50,15 @@ func Handler(build func() (*Model, error), port int) http.Handler {
 			http.Error(w, "forbidden host", http.StatusForbidden)
 			return
 		}
+		// A page on another site can still send requests here (an image, a
+		// no-cors fetch). It cannot read the answers, but each one costs a
+		// build, so refuse what the browser marks as coming from elsewhere.
+		switch r.Header.Get("Sec-Fetch-Site") {
+		case "", "none", "same-origin":
+		default:
+			http.Error(w, "forbidden origin", http.StatusForbidden)
+			return
+		}
 		mux.ServeHTTP(w, r)
 	})
 }
