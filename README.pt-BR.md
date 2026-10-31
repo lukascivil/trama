@@ -49,6 +49,8 @@ No Claude Code, a partir do workspace:
 
 Depois, `trama graph` escreve o `docs/graph.md` e a tabela de repositórios no `AGENTS.md`. O `/trama:map` nunca faz commit: revise e commite `catalog/`, `docs/graph.md` e `AGENTS.md`.
 
+`trama graph --serve` abre no navegador um grafo interativo do workspace: cada repositório com a última release (a maior tag semver) e cada relação com a prova. Clique num repositório para ver quem pode ser afetado se você publicar algo ali: os consumidores diretos, com o `arquivo:linha` que prova; os indiretos, através de outros repositórios; e os possíveis, de relações sem prova. Também tem busca, filtros e foco nos vizinhos de um repositório. Tudo roda na sua máquina: o servidor escuta só em `127.0.0.1` e a página não carrega nada da internet.
+
 ## Mudanças entre repositórios
 
 - `/trama:impact <mudança>` diz, sem alterar nada, quais repositórios e linhas uma mudança afeta, se ela quebra algum deles e a ordem segura para publicar (expandir → migrar → contrair).
@@ -68,6 +70,7 @@ Rode de qualquer lugar dentro do workspace (no seu terminal, via `mise exec -- t
 | `trama validate` | Confere todas as fichas: campos obrigatórios, evidência que existe no clone e prova de cada relação. |
 | `trama stamp <repo>` | Grava na ficha o commit que ela descreve (`origin/<branch>`). Recusa se o clone não estiver limpo e atualizado. |
 | `trama graph` | Escreve o `docs/graph.md` (Mermaid) e a tabela entre os marcadores do `AGENTS.md`. Recusa catálogo inválido. |
+| `trama graph --serve [--port <n>] [--no-open]` | Serve um grafo interativo do workspace em `127.0.0.1` (porta 7300, ou outra livre) e abre o navegador, até o Ctrl+C. Só lê; erros de validação aparecem na página. |
 | `trama setup [repo...]` | Roda o `run.setup` de cada ficha (ex.: `npm install`) e lembra disso, para que `dev`, `test` e `up` só repitam depois de commits novos, de um comando novo ou de versões novas das ferramentas. |
 | `trama dev <repo>` | Roda o `run.dev` em primeiro plano, depois do setup quando preciso, com as versões de runtime da ficha via `mise exec`. |
 | `trama test [repo...]` | Roda o `run.test` de cada repositório, depois do setup quando preciso, e mostra `passed` ou `failed` para cada um. |
