@@ -214,6 +214,18 @@ main {
 
 #panel li:last-child { border-bottom: 0; }
 
+/* The fields of a route hang under it, so the route stays the heading. */
+#panel ul.fields {
+  margin: 2px 0 2px 12px;
+  border-left: 1px solid var(--border);
+  padding-left: 10px;
+}
+
+#panel ul.fields li {
+  padding: 1px 0;
+  border-bottom: 0;
+}
+
 .rowlink { cursor: pointer; }
 .rowlink:hover code { color: var(--sel); }
 

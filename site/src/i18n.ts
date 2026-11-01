@@ -85,7 +85,7 @@ const en = {
       {
         name: 'Map',
         command: '/trama:map',
-        text: 'Reads each repository and writes its card: stack, how to run it, what it provides and what it consumes. A consumer is linked to a provider only with proof. Without proof the link stays unknown, with its candidates, and trama validate checks every line a card cites.',
+        text: 'Reads each repository and writes its card: stack, how to run it, what it provides and what it consumes — down to the fields each endpoint accepts and returns, and the tables the repository owns, so you can ask who holds a piece of data. A consumer is linked to a provider only with proof. Without proof the link stays unknown, with its candidates, and trama validate checks every line a card cites.',
       },
       {
         name: 'Run',
@@ -244,7 +244,7 @@ const pt: typeof en = {
       {
         name: 'Mapear',
         command: '/trama:map',
-        text: 'Lê cada repositório e escreve a ficha dele: stack, como rodar, o que expõe e o que consome. Um consumidor só é ligado a um fornecedor com prova. Sem prova, a ligação fica desconhecida, com os candidatos, e o trama validate confere cada linha que a ficha cita.',
+        text: 'Lê cada repositório e escreve a ficha dele: stack, como rodar, o que expõe e o que consome — até os campos que cada endpoint recebe e devolve, e as tabelas de que o repositório é dono, para você poder perguntar quem tem um dado. Um consumidor só é ligado a um fornecedor com prova. Sem prova, a ligação fica desconhecida, com os candidatos, e o trama validate confere cada linha que a ficha cita.',
       },
       {
         name: 'Rodar',

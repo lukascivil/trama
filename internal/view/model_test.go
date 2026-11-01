@@ -316,3 +316,75 @@ func TestBuildProviderCardBrokenIsUnverified(t *testing.T) {
 		t.Fatalf("api affected = %+v, want the web only as possible", api.Affected)
 	}
 }
+
+// withTable adds a table to the api card, citing a file the fixture writes.
+func withTable(f *fx) {
+	f.edit("trama-demo-api",
+		`  ports: [{ value: 8080, evidence: ["cmd/api/main.go:11"] }]`,
+		`  ports: [{ value: 8080, evidence: ["cmd/api/main.go:11"] }]
+  tables:
+    - value: greetings
+      columns: [id, message]
+      evidence: ["cmd/api/main.go:11"]`)
+}
+
+func TestModelCarriesData(t *testing.T) {
+	f := demo(t)
+	withTable(f)
+	m := f.build()
+	var got []string
+	for _, d := range m.Data {
+		got = append(got, d.Layer+" "+d.Repo+" "+d.Match)
+	}
+	want := []string{
+		"response trama-demo-api message",
+		"table trama-demo-api greetings.id",
+		"table trama-demo-api greetings.message",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("data = %v, want %v", got, want)
+	}
+}
+
+func TestModelDataEmptyWithoutFieldsOrTables(t *testing.T) {
+	f := demo(t)
+	f.edit("trama-demo-api", "    response: { message: string }\n", "")
+	if m := f.build(); len(m.Data) != 0 {
+		t.Fatalf("data = %+v, want none", m.Data)
+	}
+}
+
+func TestModelDataEvidenceIsLinked(t *testing.T) {
+	m := demo(t).build()
+	if len(m.Data) != 1 {
+		t.Fatalf("data = %+v, want one entry", m.Data)
+	}
+	ev := m.Data[0].Evidence
+	want := "https://github.com/lukascivil/trama-demo-api/blob/1cb5a15/internal/api/api.go#L42"
+	if len(ev) != 1 || ev[0].Text != "internal/api/api.go:42" || ev[0].URL != want {
+		t.Fatalf("evidence = %+v, want a link to %s", ev, want)
+	}
+}
+
+func TestModelDataJSONKey(t *testing.T) {
+	f := demo(t)
+	withTable(f)
+	data, err := json.Marshal(f.build())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"data":[`, `"layer":"response"`, `"repo":"trama-demo-api"`, `"match":"message"`, `"evidence":[`} {
+		if !strings.Contains(string(data), want) {
+			t.Fatalf("json lacks %s:\n%s", want, data)
+		}
+	}
+	empty := demo(t)
+	empty.edit("trama-demo-api", "    response: { message: string }\n", "")
+	plain, err := json.Marshal(empty.build())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(plain), `"data"`) {
+		t.Fatalf("json should omit an empty data:\n%s", plain)
+	}
+}

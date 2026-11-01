@@ -13,7 +13,7 @@
       repos: "Repositories",
       hideIsolated: "Hide repos without relations",
       onlyChanges: "Only repos with open changes",
-      search: "Search a repo or an id (GET /orders…)",
+      search: "Search a repo, an id or a field (email…)",
       hint: "Click a repository to see who may be affected if you release something there. Click an arrow to see its proof.",
       counts: (r, e, p) => `${r} ${plural(r, "repo", "repos")} · ${e} ${plural(e, "relation", "relations")} · ${p} not proven`,
       warnings: (n) => `${n} ${plural(n, "warning", "warnings")}`,
@@ -29,6 +29,12 @@
       port: (p) => `port ${p}`,
       provides: "Provides",
       consumes: "Consumes",
+      data: "Data",
+      dataHits: (n) => `${n} ${plural(n, "place", "places")}`,
+      inResponse: "returns",
+      inRequest: "accepts",
+      inTable: "stores",
+      ownedTables: "Tables it owns",
       affected: "If you release something here, these may be affected",
       direct: "Direct",
       indirect: "Indirect",
@@ -48,7 +54,7 @@
       evidence: "Evidence",
       provider: "Provider",
       consumers: "Consumers",
-      noMatch: (q) => `No repository or id matches “${q}”.`,
+      noMatch: (q) => `No repository, id or field matches “${q}”.`,
       legend: { selected: "selected", direct: "direct", indirect: "indirect", possible: "possible" },
       bundle: (n, kind) => `${n} × ${kind}`,
       together: (n, kind) => `${n} ${kind} ${plural(n, "relation", "relations")}`,
@@ -59,7 +65,7 @@
       repos: "Repositórios",
       hideIsolated: "Esconder repos sem relação",
       onlyChanges: "Só repos com mudança aberta",
-      search: "Buscar repo ou id (GET /orders…)",
+      search: "Buscar repo, id ou campo (email…)",
       hint: "Clique num repositório para ver quem pode ser afetado se você publicar algo ali. Clique numa seta para ver a prova.",
       counts: (r, e, p) => `${r} ${plural(r, "repo", "repos")} · ${e} ${plural(e, "relação", "relações")} · ${p} sem prova`,
       warnings: (n) => `${n} ${plural(n, "aviso", "avisos")}`,
@@ -75,6 +81,12 @@
       port: (p) => `porta ${p}`,
       provides: "Fornece",
       consumes: "Consome",
+      data: "Dado",
+      dataHits: (n) => `${n} ${plural(n, "lugar", "lugares")}`,
+      inResponse: "devolve",
+      inRequest: "recebe",
+      inTable: "guarda",
+      ownedTables: "Tabelas de que é dono",
       affected: "Se você publicar algo aqui, podem ser afetados",
       direct: "Diretos",
       indirect: "Indiretos",
@@ -94,7 +106,7 @@
       evidence: "Evidência",
       provider: "Fornecedor",
       consumers: "Consumidores",
-      noMatch: (q) => `Nenhum repositório ou id corresponde a “${q}”.`,
+      noMatch: (q) => `Nenhum repositório, id ou campo corresponde a “${q}”.`,
       legend: { selected: "selecionado", direct: "direto", indirect: "indireto", possible: "possível" },
       bundle: (n, kind) => `${n} × ${kind}`,
       together: (n, kind) => `${n} ${plural(n, "relação", "relações")} ${kind}`,
@@ -308,6 +320,35 @@
     return li;
   }
 
+  function dataItem(d) {
+    const label = { response: T.inResponse, request: T.inRequest, table: T.inTable }[d.layer] || d.layer;
+    const li = el("li");
+    const head = el("div");
+    head.append(el("strong", d.repo), " ", el("span", label, "muted"), " ");
+    head.append(el("code", d.layer === "table" && d.table ? `${d.table}.${d.path}` : d.path));
+    if (d.type) head.append(el("span", ` · ${d.type}`, "muted"));
+    if (d.id) head.append(" · ", el("code", d.id));
+    li.append(head);
+    if (d.evidence && d.evidence.length) li.append(evidenceList(d.evidence));
+    return li;
+  }
+
+  // dataBlock lists the hits in the order the model gives them: the
+  // endpoints that already serve the data, then the tables that hold it.
+  function dataBlock(hits) {
+    const list = el("ul");
+    hits.forEach((d) => list.append(dataItem(d)));
+    const body = document.createDocumentFragment();
+    body.append(el("p", T.dataHits(hits.length), "muted"), list);
+    return section(T.data, body);
+  }
+
+  function renderData(term, hits) {
+    const panel = $("panel");
+    panel.replaceChildren(el("h2", term));
+    panel.append(dataBlock(hits));
+  }
+
   function renderHint() {
     const panel = $("panel");
     panel.replaceChildren(el("p", T.hint, "muted"));
@@ -384,9 +425,35 @@
       r.provides.forEach((p) => {
         const li = el("li");
         li.append(el("code", p.id), el("span", ` · ${p.kind}`, "muted"), evidenceList(p.evidence));
+        const fields = (model.data || []).filter((d) => d.repo === r.name && d.layer !== "table" && d.id === p.id);
+        if (fields.length) {
+          const sub = el("ul", null, "fields");
+          fields.forEach((d) => {
+            const item = el("li");
+            item.append(el("span", d.layer === "request" ? T.inRequest : T.inResponse, "muted"), " ", el("code", d.path));
+            if (d.type) item.append(el("span", ` · ${d.type}`, "muted"));
+            sub.append(item);
+          });
+          li.append(sub);
+        }
         list.append(li);
       });
       panel.append(section(T.provides, list));
+    }
+    const owned = (model.data || []).filter((d) => d.repo === r.name && d.layer === "table");
+    if (owned.length) {
+      const byTable = new Map();
+      owned.forEach((d) => {
+        if (!byTable.has(d.table)) byTable.set(d.table, { columns: [], evidence: d.evidence });
+        byTable.get(d.table).columns.push(d.path);
+      });
+      const list = el("ul");
+      byTable.forEach((t, name) => {
+        const li = el("li");
+        li.append(el("code", name), el("span", ` · ${t.columns.join(", ")}`, "muted"), evidenceList(t.evidence));
+        list.append(li);
+      });
+      panel.append(section(T.ownedTables, list));
     }
     const consumed = model.edges.filter((e) => e.consumer === r.name);
     if (consumed.length) {
@@ -478,10 +545,23 @@
       updateLabels();
       return;
     }
+    const hits = (model.data || []).filter((d) => d.match.toLowerCase().includes(lower));
     const match = model.repos.find((r) => r.name.toLowerCase().includes(lower));
     if (match) {
       selectRepo(match.name);
       cy.center(cy.$id(`r:${match.name}`));
+      // The repo wins the panel, but the data it does not mention is still
+      // an answer to what was typed: show it instead of dropping it.
+      if (hits.length) $("panel").append(dataBlock(hits));
+      return;
+    }
+    if (hits.length) {
+      selected = null;
+      clearMarks();
+      cy.elements().addClass("faded");
+      [...new Set(hits.map((d) => d.repo))].forEach((n) => cy.$id(`r:${n}`).removeClass("faded").addClass("selected"));
+      renderData(query, hits);
+      updateLabels();
       return;
     }
     clearSelection();
