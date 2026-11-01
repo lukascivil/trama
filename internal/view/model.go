@@ -12,6 +12,7 @@ import (
 
 	"github.com/lukascivil/trama/internal/catalog"
 	"github.com/lukascivil/trama/internal/changes"
+	"github.com/lukascivil/trama/internal/datafind"
 	"github.com/lukascivil/trama/internal/gitx"
 	"github.com/lukascivil/trama/internal/release"
 	"github.com/lukascivil/trama/internal/status"
@@ -21,10 +22,26 @@ import (
 
 // Model is everything the graph page shows.
 type Model struct {
-	Workspace string   `json:"workspace"`
-	Repos     []Repo   `json:"repos"`
-	Edges     []Edge   `json:"edges"`
-	Warnings  []string `json:"warnings"`
+	Workspace string      `json:"workspace"`
+	Repos     []Repo      `json:"repos"`
+	Edges     []Edge      `json:"edges"`
+	Data      []DataEntry `json:"data,omitempty"`
+	Warnings  []string    `json:"warnings"`
+}
+
+// DataEntry is one searchable field or column, in the order the page
+// answers with: the response fields first, then the request fields, then
+// the columns. Match is the only text a search term is compared against,
+// so the page never decides what counts as a hit.
+type DataEntry struct {
+	Layer    string `json:"layer"` // response, request or table
+	Repo     string `json:"repo"`
+	ID       string `json:"id,omitempty"`    // the route or topic, for a field
+	Table    string `json:"table,omitempty"` // the table, for a column
+	Path     string `json:"path"`            // the field path, or the column
+	Type     string `json:"type,omitempty"`  // the field type
+	Match    string `json:"match"`
+	Evidence []Link `json:"evidence"`
 }
 
 // Repo is one repository of the workspace, as the page shows it. What it
@@ -143,7 +160,31 @@ func (b *Builder) Build() (*Model, error) {
 		}
 		m.Repos = append(m.Repos, repo)
 	}
+	m.Data = dataEntries(ws, cards)
 	return m, nil
+}
+
+// dataEntries is the searchable index the page's data search reads, with
+// every evidence line linked the way the other sections link theirs.
+func dataEntries(ws *workspace.Workspace, cards map[string]*catalog.Card) []DataEntry {
+	names := make([]string, 0, len(ws.Repos))
+	urls := map[string]string{}
+	for _, r := range ws.Repos {
+		names = append(names, r.Name)
+		urls[r.Name] = r.URL
+	}
+	var out []DataEntry
+	for _, h := range datafind.All(names, cards) {
+		commit := ""
+		if c := cards[h.Repo]; c != nil {
+			commit = c.MappedAtCommit
+		}
+		out = append(out, DataEntry{
+			Layer: h.Layer, Repo: h.Repo, ID: h.ID, Table: h.Table, Path: h.Path,
+			Type: h.Type, Match: h.Match, Evidence: links(urls[h.Repo], commit, h.Evidence),
+		})
+	}
+	return out
 }
 
 // validate runs the validation, or reuses the last report while
