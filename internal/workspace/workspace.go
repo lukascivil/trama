@@ -354,7 +354,7 @@ type Files struct {
 
 // Files returns how to list and read the files of r.
 func (ws *Workspace) Files(r Repo) Files {
-	dir := filepath.Join(ws.Root, "repos", r.Name)
+	dir := ws.RepoDir(r.Name)
 	place := filepath.ToSlash(filepath.Join("repos", r.Name))
 	if _, err := os.Stat(dir); err != nil {
 		return Files{Place: place}
