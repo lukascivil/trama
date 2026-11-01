@@ -40,6 +40,13 @@ func Handler(build func() (*Model, error), port int) http.Handler {
 		_ = json.NewEncoder(w).Encode(m)
 	})
 
+	return Guard(mux, port)
+}
+
+// Guard puts the security headers on every answer of next and refuses
+// requests that were not addressed to this server on port or that a page on
+// another site sent. It leaves methods and paths to next.
+func Guard(next http.Handler, port int) http.Handler {
 	hosts := []string{"127.0.0.1:" + strconv.Itoa(port), "localhost:" + strconv.Itoa(port)}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
@@ -59,7 +66,7 @@ func Handler(build func() (*Model, error), port int) http.Handler {
 			http.Error(w, "forbidden origin", http.StatusForbidden)
 			return
 		}
-		mux.ServeHTTP(w, r)
+		next.ServeHTTP(w, r)
 	})
 }
 

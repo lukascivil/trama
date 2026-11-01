@@ -128,3 +128,33 @@ func TestServerRejectsOtherSites(t *testing.T) {
 		}
 	}
 }
+
+func TestGuardRefusesForeignHostAndSite(t *testing.T) {
+	h := view.Guard(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), port)
+	cases := []struct {
+		name, host, site string
+		want             int
+	}{
+		{"foreign host", "evil.test", "", http.StatusForbidden},
+		{"cross-site request", "127.0.0.1:7300", "cross-site", http.StatusForbidden},
+		{"same machine", "127.0.0.1:7300", "", http.StatusNoContent},
+	}
+	for _, c := range cases {
+		req := httptest.NewRequest(http.MethodPost, "/anything", nil)
+		req.Host = c.host
+		if c.site != "" {
+			req.Header.Set("Sec-Fetch-Site", c.site)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != c.want {
+			t.Errorf("%s: status = %d, want %d", c.name, rec.Code, c.want)
+		}
+		if !strings.Contains(rec.Header().Get("Content-Security-Policy"), "default-src 'self'") ||
+			rec.Header().Get("X-Content-Type-Options") != "nosniff" {
+			t.Errorf("%s: security headers missing: %v", c.name, rec.Header())
+		}
+	}
+}
