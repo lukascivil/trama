@@ -8,6 +8,8 @@ Arguments: the change, in the user's words ($ARGUMENTS). Work from the workspace
 
 Never push to a repository's main branch, never merge a pull request, never stash, reset or discard anyone's changes, and never skip a repository's tests.
 
+Other skills may shape how you think, plan, test and review, but this skill owns the repositories' mechanics. Work in the clones under `repos/`, never in a git worktree: `trama branch`, `trama test` and `trama pr` only see the clone. Open branches and pull requests only through `trama branch` and `trama pr`, never through another skill's flow for finishing a branch. The plan is the record in `changes/`; do not commit another plan or spec file to the workspace.
+
 ## 1. Impact and plan
 
 1. Look in `changes/` for records whose `touches` include an `id` this change touches (for records without `touches`, read their impact section, whatever the language of its heading) and whose steps are not all `merged` (`trama status` lists open changes). If one exists, tell the user and offer to continue it: the new record then sets `continues` to its `id`, and when you open the pull request for the earlier record's pending step, set that step's `branch`, `pr` and `state: open` in the earlier record too and save it with `trama changes save <earlier id>`, so it closes when the pull request merges.
