@@ -29,4 +29,7 @@ _No repositories mapped yet._
 - If a change touches anything listed under `provides`, `consumes` or `config` in the catalog, run `/trama:impact` first.
 - Changes that span repositories go through `/trama:change`.
 - Never commit code from `repos/` to this workspace repository.
+- Skills for thinking, planning, testing and review are welcome; the repositories' mechanics belong to trama. Work in the clones under `repos/`, never in a git worktree: `trama test`, `trama status` and `trama pr` only see the clone.
+- Open branches with `trama branch` and pull requests with `trama pr`, even for a change in one repository. Never merge a pull request or push to a main branch, and do not use another skill's flow for finishing a branch.
+- The plan of a change that spans repositories is its record in `changes/`. Do not commit other plan or spec files to this workspace.
 - If `trama status` reports a catalog card as stale, do not trust it: run `/trama:map` first.
