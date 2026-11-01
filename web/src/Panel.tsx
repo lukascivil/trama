@@ -119,35 +119,116 @@ function ProvidesTab({ repo, model }: { repo: Repo; model: Model }) {
   );
 }
 
-function ConsumesTab({ edges, onSelectRepo }: Select & { edges: Edge[] }) {
+// What the provider says it accepts and returns at this id: the contract the
+// consumer is bound to.
+function Contract({ fields }: { fields: DataEntry[] }) {
+  if (fields.length === 0) return null;
+  return (
+    <ul className="fields">
+      {fields.map((d, i) => (
+        <li key={i}>
+          <span className="muted">{d.layer === "request" ? T.inRequest : T.inResponse}</span> <code>{d.path}</code>
+          {d.type && <span className="muted"> · {d.type}</span>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// An endpoint shows only its id and status; "see more" opens the files that
+// prove it and the contract.
+function ConsumedItem({ e, fields, open, onToggle }: { e: Edge; fields: DataEntry[]; open: boolean; onToggle: () => void }) {
+  const hasMore = (e.evidence ?? []).length > 0 || fields.length > 0;
+  return (
+    <li>
+      <code>{e.id}</code> {statusBadge(e)}
+      {hasMore && (
+        <>
+          {" "}
+          <button type="button" className="more" aria-expanded={open} onClick={onToggle}>
+            {open ? T.seeLess : T.seeMore}
+          </button>
+        </>
+      )}
+      {open && (
+        <>
+          <Evidence list={e.evidence} />
+          {fields.length > 0 && (
+            <>
+              <div className="muted contract-title">{T.contract}</div>
+              <Contract fields={fields} />
+            </>
+          )}
+        </>
+      )}
+    </li>
+  );
+}
+
+function ConsumesTab({ edges, model, onSelectRepo }: Select & { edges: Edge[]; model: Model }) {
   const [q, setQ] = useState("");
+  const [closed, setClosed] = useState<Set<string>>(new Set());
+  const [opened, setOpened] = useState<Set<string>>(new Set());
   const list = edges.filter((e) => matches(q, e.id, e.provider, e.kind));
   const byProvider = new Map<string, Edge[]>();
   list.forEach((e) => {
     const key = e.provider ?? "?";
     byProvider.set(key, [...(byProvider.get(key) ?? []), e]);
   });
+  const itemKey = (e: Edge) => `${e.provider ?? "?"}\u0000${e.kind ?? ""}\u0000${e.id}`;
+  const fieldsOf = (e: Edge) =>
+    e.provider ? (model.data ?? []).filter((d) => d.repo === e.provider && d.layer !== "table" && d.id === e.id) : [];
+  const flip = (set: Set<string>, key: string) => {
+    const next = new Set(set);
+    if (!next.delete(key)) next.add(key);
+    return next;
+  };
+  // A search must not hide its own answer behind a closed list.
+  const searching = q.trim() !== "";
+  const providers = [...byProvider.keys()];
+  const allClosed = providers.every((p) => closed.has(p));
+  const allOpened = list.every((e) => opened.has(itemKey(e)));
   return (
     <>
       <FilterBox value={q} onChange={setQ} />
       {list.length === 0 && <p className="muted">{T.noneMatch}</p>}
-      {[...byProvider].map(([provider, items]) => (
-        <Section
-          key={provider}
-          title={`${T.from} ${provider}`}
-          count={items.length}
-        >
-          {provider !== "?" && <RepoButton name={provider} onSelect={onSelectRepo} />}
-          <ul>
-            {items.map((e, i) => (
-              <li key={i}>
-                <code>{e.id}</code> {statusBadge(e)}
-                <Evidence list={e.evidence} />
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ))}
+      {list.length > 0 && (
+        <div className="list-actions">
+          {providers.length > 1 && (
+            <button type="button" className="more" onClick={() => setClosed(allClosed ? new Set() : new Set(providers))}>
+              {allClosed ? T.expandAll : T.collapseAll}
+            </button>
+          )}
+          <button type="button" className="more" onClick={() => setOpened(allOpened ? new Set() : new Set(list.map(itemKey)))}>
+            {allOpened ? T.seeLessAll : T.seeMoreAll}
+          </button>
+        </div>
+      )}
+      {[...byProvider].map(([provider, items]) => {
+        const open = searching || !closed.has(provider);
+        return (
+          <Section
+            key={provider}
+            title={`${T.from} ${provider}`}
+            count={items.length}
+            open={open}
+            onToggle={() => setClosed(flip(closed, provider))}
+          >
+            {provider !== "?" && <RepoButton name={provider} onSelect={onSelectRepo} />}
+            <ul>
+              {items.map((e) => (
+                <ConsumedItem
+                  key={itemKey(e)}
+                  e={e}
+                  fields={fieldsOf(e)}
+                  open={opened.has(itemKey(e))}
+                  onToggle={() => setOpened(flip(opened, itemKey(e)))}
+                />
+              ))}
+            </ul>
+          </Section>
+        );
+      })}
     </>
   );
 }
@@ -299,7 +380,7 @@ function RepoPanel({ repo, model, extra, tab, onTab, focus, onSelectRepo }: Sele
       <div className="tab-body" key={`${repo.name}:${current}`}>
         {current === "affected" && <AffectedTab repo={repo} onSelectRepo={onSelectRepo} />}
         {current === "provides" && <ProvidesTab repo={repo} model={model} />}
-        {current === "consumes" && <ConsumesTab edges={consumed} onSelectRepo={onSelectRepo} />}
+        {current === "consumes" && <ConsumesTab edges={consumed} model={model} onSelectRepo={onSelectRepo} />}
         {current === "tables" && <TablesTab rows={owned} />}
         {current === "run" && (
           <ul>

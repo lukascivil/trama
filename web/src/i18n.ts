@@ -60,6 +60,15 @@ type Strings = {
   fitView: string;
   affectedTitle: string;
   openChanges: string;
+  collapse: string;
+  expand: string;
+  collapseAll: string;
+  expandAll: string;
+  seeMore: string;
+  seeLess: string;
+  seeMoreAll: string;
+  seeLessAll: string;
+  contract: string;
 };
 
 const en: Strings = {
@@ -122,6 +131,15 @@ const en: Strings = {
   fitView: "Fit to screen",
   affectedTitle: "If you release something here, these may be affected",
   openChanges: "Open changes",
+  collapse: "Close this list",
+  expand: "Open this list",
+  collapseAll: "Close all",
+  expandAll: "Open all",
+  seeMore: "see more",
+  seeLess: "see less",
+  seeMoreAll: "See more on all",
+  seeLessAll: "See less on all",
+  contract: "Contract",
 };
 
 const pt: Strings = {
@@ -184,6 +202,15 @@ const pt: Strings = {
   fitView: "Ajustar à tela",
   affectedTitle: "Se você publicar algo aqui, podem ser afetados",
   openChanges: "Mudanças abertas",
+  collapse: "Fechar esta lista",
+  expand: "Abrir esta lista",
+  collapseAll: "Fechar todos",
+  expandAll: "Abrir todos",
+  seeMore: "ver mais",
+  seeLess: "ver menos",
+  seeMoreAll: "Ver mais em todos",
+  seeLessAll: "Ver menos em todos",
+  contract: "Contrato",
 };
 
 const params = new URLSearchParams(location.search);

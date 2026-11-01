@@ -383,6 +383,48 @@ main {
   border-bottom: 0;
 }
 
+.fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.fold:hover { color: var(--sel); }
+.chevron { width: 10px; text-align: center; }
+
+.more {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.more:hover { text-decoration: underline; }
+
+.list-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 8px 0 2px;
+}
+
+.contract-title {
+  margin-top: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .rowlink { cursor: pointer; }
 .rowlink:hover code { color: var(--sel); }
 
