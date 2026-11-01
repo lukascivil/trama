@@ -154,3 +154,12 @@ func hasError(fs []validate.Finding, where, text string) bool {
 	}
 	return false
 }
+
+func hasWarning(fs []validate.Finding, where, text string) bool {
+	for _, f := range fs {
+		if f.Severity == validate.Warning && f.Where == where && strings.Contains(f.Message, text) {
+			return true
+		}
+	}
+	return false
+}

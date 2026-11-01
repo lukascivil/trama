@@ -29,7 +29,9 @@ One card per repository, at `catalog/<name>.yaml`. `trama validate` checks every
 | `topics` | `{value: orders.created, evidence: [...]}` | the line that publishes to the topic; a topic this repository publishes also goes in `provides` with `kind: event`, which is what links a consumer to it |
 | `tables` | `{value: users, columns: [id, email], evidence: [...]}` | the line of the migration or schema that creates the table, never one that queries it; `value` may be qualified by its schema, as in `public.users` |
 
-A table is not a relation: it never goes in `provides`, it links nothing, and `trama link` and `trama graph` ignore it. It is here so a repository that needs a piece of data can find who owns it. `columns` is required — a table without its columns only says who owns "users", which whoever is asking already knew. List the columns the table has, not the ones the code reads.
+A table is not a relation: it never goes in `provides`, it links nothing, and `trama link` ignores it; the graph shows it as part of the repository, never as an arrow. It is here so a repository that needs a piece of data can find who owns it. `columns` is required — a table without its columns only says who owns "users", which whoever is asking already knew. List the columns the table has, not the ones the code reads.
+
+`tables: []` is not the same as leaving the key out. The empty list says the repository was looked at and owns no table; a missing key says nobody looked. `trama validate` warns when a clone has files that declare tables (what `trama schemas` lists) and the card has no `tables` key, and the empty list is what silences it.
 
 ### provides
 

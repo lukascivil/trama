@@ -8,9 +8,11 @@
 package gitx
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -228,6 +230,137 @@ func (r Repo) ReadFile(rev, path string) ([]byte, error) {
 		return nil, fmt.Errorf("%s is not a regular file at %s", path, rev)
 	}
 	return runRaw(r.Dir, "cat-file", "blob", f[2])
+}
+
+// ListFiles lists the regular files committed at rev: the ones ReadFile
+// can read. Symlinks and submodules are left out, so nothing listed here is
+// a file ReadFile would then refuse.
+func (r Repo) ListFiles(rev string) ([]string, error) {
+	out, err := runRaw(r.Dir, "ls-tree", "-r", "-z", rev)
+	if err != nil {
+		return nil, err
+	}
+	var files []string
+	for _, entry := range strings.Split(string(out), "\x00") {
+		meta, path, ok := strings.Cut(entry, "\t")
+		if !ok {
+			continue
+		}
+		f := strings.Fields(meta)
+		if len(f) == 3 && f[1] == "blob" && (f[0] == "100644" || f[0] == "100755") {
+			files = append(files, path)
+		}
+	}
+	return files, nil
+}
+
+// ReadFiles returns the content of each of paths at rev in two git
+// processes, however many paths there are: ReadFile costs two per file,
+// which a repository of a thousand .sql files turns into half a minute. It
+// refuses what ReadFile refuses: anything that is not a regular file there.
+func (r Repo) ReadFiles(rev string, paths []string) (map[string][]byte, error) {
+	if len(paths) == 0 {
+		return map[string][]byte{}, nil
+	}
+	out, err := runRaw(r.Dir, "ls-tree", "-r", "-z", rev)
+	if err != nil {
+		return nil, err
+	}
+	blobs, present := map[string]string{}, map[string]bool{}
+	for _, entry := range strings.Split(string(out), "\x00") {
+		meta, path, ok := strings.Cut(entry, "\t")
+		if !ok {
+			continue
+		}
+		f := strings.Fields(meta)
+		if len(f) != 3 {
+			continue
+		}
+		present[path] = true
+		if f[1] == "blob" && (f[0] == "100644" || f[0] == "100755") {
+			blobs[path] = f[2]
+		}
+	}
+	ids := make([]string, len(paths))
+	for i, p := range paths {
+		id, ok := blobs[p]
+		switch {
+		case ok:
+			ids[i] = id
+		case present[p]:
+			return nil, fmt.Errorf("%s is not a regular file at %s", p, rev)
+		default:
+			return nil, fmt.Errorf("%s %w at %s", p, ErrNotExist, rev)
+		}
+	}
+	return catBlobs(r.Dir, paths, ids)
+}
+
+// catBlobs reads blobs ids, in order, through one git cat-file --batch, and
+// returns them by paths. Ids are written from a goroutine while the output
+// is read here: writing them all first would deadlock once git fills the
+// pipe with output nobody is reading yet.
+func catBlobs(dir string, paths, ids []string) (map[string][]byte, error) {
+	cmd := exec.Command("git", "cat-file", "--batch")
+	cmd.Dir = dir
+	cmd.Env = gitEnv(dir)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, err
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	go func() {
+		w := bufio.NewWriter(stdin)
+		for _, id := range ids {
+			fmt.Fprintln(w, id)
+		}
+		w.Flush()
+		stdin.Close()
+	}()
+	out := make(map[string][]byte, len(ids))
+	br := bufio.NewReader(stdout)
+	readErr := func() error {
+		for i := range ids {
+			header, err := br.ReadString('\n')
+			if err != nil {
+				return err
+			}
+			f := strings.Fields(header) // "<id> blob <size>"
+			if len(f) != 3 || f[1] != "blob" {
+				return fmt.Errorf("%s: unexpected %q", paths[i], strings.TrimSpace(header))
+			}
+			size, err := strconv.Atoi(f[2])
+			if err != nil {
+				return err
+			}
+			data := make([]byte, size)
+			if _, err := io.ReadFull(br, data); err != nil {
+				return err
+			}
+			if _, err := br.ReadByte(); err != nil { // the newline after each blob
+				return err
+			}
+			out[paths[i]] = data
+		}
+		return nil
+	}()
+	if readErr != nil {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return nil, fmt.Errorf("git cat-file --batch: %w", readErr)
+	}
+	if err := cmd.Wait(); err != nil {
+		return nil, fmt.Errorf("git cat-file --batch: %s", strings.TrimSpace(stderr.String()))
+	}
+	return out, nil
 }
 
 // Tag is a tag name and its date: the tagger's for an annotated tag, the

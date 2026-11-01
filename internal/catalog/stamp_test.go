@@ -149,3 +149,20 @@ func TestStampRefuses(t *testing.T) {
 		})
 	}
 }
+
+func TestStampKeepsEmptyTables(t *testing.T) {
+	// "tables: []" says the mapper looked and this repository owns no table;
+	// it has to survive the stamp, or the next stamp brings the warning back.
+	card := strings.Replace(stampCard, "provides:", "identity:\n  tables: []\nprovides:", 1)
+	f := newStampFx(t, true, card)
+	if _, err := catalog.Stamp(f.ws, "api", today); err != nil {
+		t.Fatal(err)
+	}
+	c, err := catalog.LoadStrict(f.ws.Root, "api")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Identity.Tables == nil || len(c.Identity.Tables) != 0 {
+		t.Fatalf("tables = %#v, want an empty list, not a missing one", c.Identity.Tables)
+	}
+}
