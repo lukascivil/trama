@@ -21,7 +21,10 @@ func newDataCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			term := strings.ToLower(args[0])
+			term := strings.ToLower(strings.TrimSpace(args[0]))
+			if term == "" {
+				return fmt.Errorf(`give a field or column to look for, e.g. "email"`)
+			}
 			cards := map[string]*catalog.Card{}
 			var unmapped []string
 			for _, r := range ws.Repos {

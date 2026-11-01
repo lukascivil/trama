@@ -44,7 +44,7 @@ A table is not a relation: it never goes in `provides`, it links nothing, and `t
 `request` and `response` are a flat map of field path to type, never nested YAML:
 
 - A path is dotted names, the way the body nests them: `id`, `customer.email`, `items[].sku`. `[]` marks a segment that is a list of objects you then descend into, so it never ends a path — a list of plain values is the type, `[]string`.
-- A type is one of `string`, `number`, `boolean`, `object`, `[]string`, `[]number`, `[]boolean`, `[]object`, and nothing else. Whether a field is required, its format and its allowed values belong in the `contract` file, not here.
+- A type is one of `string`, `number`, `boolean`, `object`, `[]string`, `[]number`, `[]boolean`, `[]object`, and nothing else. Quote the list ones (`tags: "[]string"`): YAML reads a bare `[` as the start of a list, so an unquoted `[]string` is a syntax error, not a type. Whether a field is required, its format and its allowed values belong in the `contract` file, not here.
 - List the fields the endpoint really returns, not the columns the database has. Leave the map out when you could not read them, instead of guessing.
 
 ### consumes
@@ -100,7 +100,7 @@ identity:
 provides:
   - kind: http
     id: "GET /hello"
-    response: { message: string }
+    response: { message: string, tags: "[]string" }
     evidence: ["internal/api/api.go:42"]
 ```
 

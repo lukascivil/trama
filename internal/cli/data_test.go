@@ -93,3 +93,11 @@ func TestDataUnknownTerm(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestDataRejectsEmptyTerm(t *testing.T) {
+	ws := catalogWorkspace(t, dataAPI, cliWeb)
+	out, err := run(t, "data", "", "--dir", ws)
+	if err == nil || !strings.Contains(err.Error(), "give a field or column") {
+		t.Fatalf("err = %v, out:\n%s", err, out)
+	}
+}
