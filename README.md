@@ -52,7 +52,7 @@ In Claude Code, from the workspace:
 - `/trama:add-repo <url>` adds a repository, clones it and maps it. With no URL (or with an organization name) it opens a page on your machine that lists the organization's repositories on GitHub, with a filter and checkboxes, and then adds, clones and maps the ones you tick.
 - `/trama:map <repo>` (or `--all`) reads a repository and writes its catalog card, `catalog/<repo>.yaml`: stack, how to run it, what it provides and consumes, and the `file:line` evidence for each fact. A consumer is linked to a provider by `trama link`, which is mechanical: the relation goes to the one repository of the workspace that serves that route, publishes that topic or owns that package, and routes match however each side spells a path parameter. When two repositories serve it, the relation stays `from: unknown` with both as candidates, for you to settle with a config value matching one provider's host or port, or a link declared in `workspace.yaml`.
 
-Then `trama link` resolves the relations and `trama graph` writes `docs/graph.md` and the repository table in `AGENTS.md`. `/trama:map` never commits: review and commit `catalog/`, `docs/graph.md` and `AGENTS.md` yourself.
+Then `trama bodies` writes the request and response of every route a committed OpenAPI 3 spec declares, `trama link` resolves the relations and `trama graph` writes `docs/graph.md` and the repository table in `AGENTS.md`. `/trama:map` never commits: review and commit `catalog/`, `docs/graph.md` and `AGENTS.md` yourself.
 
 `trama graph --serve` opens an interactive graph of the workspace in your browser: every repository with its latest release (the highest semver tag) and every relation with its proof. Click a repository to see who may be affected if you release something there: direct consumers, with the `file:line` that proves it; indirect ones, through other repositories; and possible ones, from relations without proof. The search goes further than repositories and ids: type a field or a column, such as `email`, and it answers who holds that piece of data — first the endpoints that already return or accept it, then the tables that store it. A repository's panel shows the fields of each route it serves and the tables it owns. It also has filters and a focus on one repository's neighbors. Everything runs on your machine: the server listens only on `127.0.0.1` and the page loads nothing from the internet.
 
@@ -75,6 +75,7 @@ Run them from anywhere inside the workspace (in your own shell, through `mise ex
 | `trama status [--quiet]` | Shows branch, local changes, distance from origin, catalog card state and unproven relations for every repository. Offline. `--quiet` prints only problems. |
 | `trama validate` | Checks every catalog card: required fields, evidence that exists in the clone, and proof for every relation. |
 | `trama stamp <repo>` | Records in the card the commit it describes (`origin/<branch>`). Refuses unless the clone is clean and up to date. |
+| `trama bodies [repo...] [--dry-run]` | Writes the `request`, `response` and `contract` of every route a committed OpenAPI 3 spec of the repository declares, and removes a body the spec no longer declares. A route's `contract` decides the spec; without one, the one spec that declares the route counts, and when two do, the route is left for you to set `contract`. It also names the routes a spec declares that the card does not list. |
 | `trama link [--dry-run]` | Links every `from: unknown` to the one repository of the workspace that provides it and writes the proof in `via`. Leaves the candidates when more than one does. |
 | `trama graph` | Writes `docs/graph.md` (Mermaid) and the table between the markers in `AGENTS.md`. Refuses an invalid catalog. |
 | `trama graph --serve [--port <n>] [--no-open]` | Serves an interactive graph of the workspace on `127.0.0.1` (port 7300, or a free one) and opens the browser, until Ctrl+C. It only reads; validation errors show on the page. |
@@ -123,7 +124,7 @@ Workspaces need nothing: each one runs the binary that matches the plugin its us
 ## Known limitations
 
 - `trama add` rewrites `workspace.yaml` without its blank lines. Comments and unknown fields are kept.
-- `trama stamp` rewrites the card the same way: blank lines go and inline maps are compacted (`{ cmd: x }` becomes `{cmd: x}`).
+- `trama stamp`, `trama bodies` and `trama link` rewrite the card the same way: blank lines go and inline maps are compacted (`{ cmd: x }` becomes `{cmd: x}`).
 
 ## License
 

@@ -6,7 +6,7 @@ description: Tell what a change would break across the repositories of a trama w
 
 Arguments: the change, in the user's words ($ARGUMENTS). Work from the workspace root. Change nothing. Answer in the user's language.
 
-1. Find what the change touches: the `id` (`GET /hello`, a topic, a package), or a part of one (a field of its response, a parameter), and the repository that provides it. Read the cards in `catalog/` (`response` lists the fields an endpoint returns, `request` the ones it accepts) and the provider's code when the request names code rather than an `id`.
+1. Find what the change touches: the `id` (`GET /hello`, a topic, a package), or a part of one (a field of its response, a parameter), and the repository that provides it. For a field, run `trama data <field>`: it lists every endpoint whose `response` or `request` has it, and every table with that column, with evidence. Prefer it to reading whole cards, which can hold thousands of field lines once `trama bodies` has read the specs. Read the provider's card for the route itself (`response` lists the fields an endpoint returns, `request` the ones it accepts) and the provider's code when the request names code rather than an `id`.
 2. Run `trama status`. If the card of the provider or of a consumer is missing or stale, say so first and suggest `/trama:map <repo>`: an answer from an outdated card can be wrong.
 3. Run `trama uses "<id>"` for each `id`. It lists the provider, every consumer with its evidence, and pending consumers (`pending in`, from `from: unknown`).
 4. Find every place the change touches, with `path:line`:

@@ -39,7 +39,7 @@ A table is not a relation: it never goes in `provides`, it links nothing, and `t
 
 - `kind`: `http`, `event` or `package`.
 - `id`: for `http`, `METHOD /path` with METHOD one of `GET POST PUT PATCH DELETE HEAD OPTIONS`, path parameters as `{name}` (never `:name`) and no query string, e.g. `GET /orders/{id}`. For `event`, the topic. For `package`, the package name.
-- `contract`: optional path to an OpenAPI, GraphQL or proto file. It stays a pointer: the card carries the fields so they can be searched, the file carries the full detail.
+- `contract`: optional path to an OpenAPI, GraphQL or proto file, relative to the repository root and without `..`. `trama validate` checks that the file exists. `trama bodies` writes it when exactly one OpenAPI 3 spec of the repository declares the route; when two do, set it yourself to the one that serves the route. It stays a pointer: the card carries the fields so they can be searched, the file carries the full detail.
 - `request`: optional body fields the endpoint accepts. Only for `kind: http`.
 - `response`: optional body fields it returns, e.g. `{message: string}`; for `kind: event`, the payload it publishes. Not for `kind: package`.
 
@@ -48,6 +48,7 @@ A table is not a relation: it never goes in `provides`, it links nothing, and `t
 - A path is dotted names, the way the body nests them: `id`, `customer.email`, `items[].sku`. `[]` marks a segment that is a list of objects you then descend into, so it never ends a path — a list of plain values is the type, `[]string`.
 - A type is one of `string`, `number`, `boolean`, `object`, `[]string`, `[]number`, `[]boolean`, `[]object`, and nothing else. Quote the list ones (`tags: "[]string"`): YAML reads a bare `[` as the start of a list, so an unquoted `[]string` is a syntax error, not a type. Whether a field is required, its format and its allowed values belong in the `contract` file, not here.
 - List the fields the endpoint really returns, not the columns the database has. Leave the map out when you could not read them, instead of guessing.
+- For a route a committed OpenAPI 3 spec declares, do not write them by hand: `trama bodies` writes both from the spec, rewrites them on every run and removes a body the spec does not declare. Hand-written bodies are for routes no committed spec declares.
 
 ### consumes
 
