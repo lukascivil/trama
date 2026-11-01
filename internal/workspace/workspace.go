@@ -346,10 +346,11 @@ func isSCPLike(u string) bool {
 // edits and ignored files never count, and from the disk otherwise. List and
 // Read are nil when the repository is not cloned.
 type Files struct {
-	Place  string // where the files come from, for messages
-	Cloned bool
-	List   func() ([]string, error)
-	Read   func(path string) ([]byte, error)
+	Place   string // where the files come from, for messages
+	Cloned  bool
+	List    func() ([]string, error)
+	Read    func(path string) ([]byte, error)
+	ReadAll func(paths []string) (map[string][]byte, error) // Read for many files at once
 }
 
 // Files returns how to list and read the files of r.
@@ -364,23 +365,40 @@ func (ws *Workspace) Files(r Repo) Files {
 	if g.IsRepo() {
 		if _, err := g.RevParse(rev); err == nil {
 			return Files{
-				Place:  place + " at " + rev,
-				Cloned: true,
-				List:   func() ([]string, error) { return g.ListFiles(rev) },
-				Read:   func(path string) ([]byte, error) { return g.ReadFile(rev, path) },
+				Place:   place + " at " + rev,
+				Cloned:  true,
+				List:    func() ([]string, error) { return g.ListFiles(rev) },
+				Read:    func(path string) ([]byte, error) { return g.ReadFile(rev, path) },
+				ReadAll: func(paths []string) (map[string][]byte, error) { return g.ReadFiles(rev, paths) },
 			}
 		}
 	}
 	return Files{
-		Place:  place,
-		Cloned: true,
-		List:   func() ([]string, error) { return listRegular(dir) },
-		Read:   func(path string) ([]byte, error) { return readRegular(dir, path) },
+		Place:   place,
+		Cloned:  true,
+		List:    func() ([]string, error) { return listRegular(dir) },
+		Read:    func(path string) ([]byte, error) { return readRegular(dir, path) },
+		ReadAll: func(paths []string) (map[string][]byte, error) { return readAllRegular(dir, paths) },
 	}
 }
 
+// readAllRegular reads paths from disk one by one: there is no process to
+// spare here, unlike in git.
+func readAllRegular(dir string, paths []string) (map[string][]byte, error) {
+	out := make(map[string][]byte, len(paths))
+	for _, p := range paths {
+		data, err := readRegular(dir, p)
+		if err != nil {
+			return nil, err
+		}
+		out[p] = data
+	}
+	return out, nil
+}
+
 // listRegular lists the regular files under dir as slash paths relative to
-// it, skipping .git and node_modules. Symlinks are never followed.
+// it, skipping .git, node_modules and checked-out submodules. Symlinks are
+// never followed.
 func listRegular(dir string) ([]string, error) {
 	var out []string
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
@@ -388,7 +406,15 @@ func listRegular(dir string) ([]string, error) {
 			return err
 		}
 		if d.IsDir() {
-			if path != dir && (d.Name() == ".git" || d.Name() == "node_modules") {
+			if path == dir {
+				return nil
+			}
+			if d.Name() == ".git" || d.Name() == "node_modules" {
+				return filepath.SkipDir
+			}
+			// A checked-out submodule has a .git of its own: its files are
+			// another repository's, as git mode already treats them.
+			if _, err := os.Lstat(filepath.Join(path, ".git")); err == nil {
 				return filepath.SkipDir
 			}
 			return nil

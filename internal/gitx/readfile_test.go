@@ -2,6 +2,7 @@ package gitx_test
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -60,5 +61,65 @@ func TestListFilesOnlyRegular(t *testing.T) {
 	want := []string{"README.md", "db/schema.rb", "run.sh"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ListFiles = %v, want %v (no symlink, no submodule)", got, want)
+	}
+}
+
+func TestReadFilesBatch(t *testing.T) {
+	remote := testutil.NewRemote(t, "main")
+	remote.Commit(t, "a.txt", "alpha\n")
+	remote.Commit(t, "db/init.sql", "CREATE TABLE x ();\n")
+	r := cloneOf(t, remote, "main")
+	got, err := r.ReadFiles("origin/main", []string{"db/init.sql", "a.txt"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string][]byte{"a.txt": []byte("alpha\n"), "db/init.sql": []byte("CREATE TABLE x ();\n")}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ReadFiles = %q, want %q", got, want)
+	}
+}
+
+func TestReadFilesManyLargeBlobs(t *testing.T) {
+	// Far more output than a pipe buffer holds: reading must not wait on
+	// writing, or the batch deadlocks and this test times out.
+	remote := testutil.NewRemote(t, "main")
+	r := cloneOf(t, remote, "main")
+	body := strings.Repeat("x", 2048)
+	var paths []string
+	for i := range 200 {
+		p := fmt.Sprintf("models/m%03d.sql", i)
+		full := filepath.Join(r.Dir, p)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(fmt.Sprintf("%d %s\n", i, body)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		paths = append(paths, p)
+	}
+	testutil.Git(t, r.Dir, "add", "models")
+	testutil.Git(t, r.Dir, "commit", "-q", "-m", "models")
+	got, err := r.ReadFiles("HEAD", paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 200 || string(got["models/m137.sql"]) != fmt.Sprintf("137 %s\n", body) {
+		t.Fatalf("read %d files; m137 = %.20q", len(got), got["models/m137.sql"])
+	}
+}
+
+func TestReadFilesRefusesWhatReadFileRefuses(t *testing.T) {
+	remote := testutil.NewRemote(t, "main")
+	r := cloneOf(t, remote, "main")
+	if err := os.Symlink("/etc/hosts", filepath.Join(r.Dir, "lnk")); err != nil {
+		t.Fatal(err)
+	}
+	testutil.Git(t, r.Dir, "add", "lnk")
+	testutil.Git(t, r.Dir, "commit", "-q", "-m", "link")
+	if _, err := r.ReadFiles("HEAD", []string{"README.md", "lnk"}); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+		t.Fatalf("symlink: err = %v", err)
+	}
+	if _, err := r.ReadFiles("HEAD", []string{"missing.sql"}); !errors.Is(err, gitx.ErrNotExist) {
+		t.Fatalf("missing: err = %v", err)
 	}
 }

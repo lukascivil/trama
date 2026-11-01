@@ -127,7 +127,7 @@ func checkTablesMapped(rep report, ev *evidenceChecker, c *catalog.Card) {
 	if c.Identity.Tables != nil || ev.notCloned {
 		return
 	}
-	found, err := schemafind.Scan(ev.list, ev.load)
+	found, err := schemafind.Scan(ev.list, ev.readAll)
 	if err != nil || len(found) == 0 {
 		return
 	}
@@ -196,6 +196,7 @@ type evidenceChecker struct {
 	place     string                            // where files are read from, for messages
 	read      func(path string) ([]byte, error) // reads a file the card cites
 	list      func() ([]string, error)          // lists the files read can read
+	readAll   func([]string) (map[string][]byte, error)
 	cache     map[string]readResult
 }
 
@@ -209,7 +210,7 @@ type readResult struct {
 // ignored files never change the result, and from the disk otherwise.
 func newEvidenceChecker(ws *workspace.Workspace, repo workspace.Repo, rep report) *evidenceChecker {
 	f := ws.Files(repo)
-	return &evidenceChecker{rep: rep, notCloned: !f.Cloned, place: f.Place, read: f.Read, list: f.List, cache: map[string]readResult{}}
+	return &evidenceChecker{rep: rep, notCloned: !f.Cloned, place: f.Place, read: f.Read, list: f.List, readAll: f.ReadAll, cache: map[string]readResult{}}
 }
 
 func (e *evidenceChecker) load(path string) ([]byte, error) {

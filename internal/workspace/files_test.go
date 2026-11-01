@@ -99,3 +99,45 @@ func TestFilesNotCloned(t *testing.T) {
 		t.Fatalf("files = %+v, want not cloned", f)
 	}
 }
+
+func TestFilesReadAllGitMode(t *testing.T) {
+	remote := testutil.NewRemote(t, "main")
+	remote.Commit(t, "db/init.sql", "CREATE TABLE x ();\n")
+	root := t.TempDir()
+	if err := gitx.Clone(remote.URL, "main", filepath.Join(root, "repos", "api")); err != nil {
+		t.Fatal(err)
+	}
+	ws := apiWorkspace(root)
+	got, err := ws.Files(ws.Repos[0]).ReadAll([]string{"db/init.sql"})
+	if err != nil || string(got["db/init.sql"]) != "CREATE TABLE x ();\n" {
+		t.Fatalf("ReadAll = %q, %v", got, err)
+	}
+}
+
+func TestFilesReadAllDiskMode(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "repos", "api", "db", "init.sql"), "CREATE TABLE x ();\n")
+	ws := apiWorkspace(root)
+	got, err := ws.Files(ws.Repos[0]).ReadAll([]string{"db/init.sql"})
+	if err != nil || string(got["db/init.sql"]) != "CREATE TABLE x ();\n" {
+		t.Fatalf("ReadAll = %q, %v", got, err)
+	}
+}
+
+func TestFilesDiskModeSkipsSubmoduleCheckouts(t *testing.T) {
+	// A checked-out submodule has a .git file; its files belong to another
+	// repository, as git mode already treats them.
+	root := t.TempDir()
+	dir := filepath.Join(root, "repos", "api")
+	writeFile(t, filepath.Join(dir, "a.txt"), "a\n")
+	writeFile(t, filepath.Join(dir, "sub", ".git"), "gitdir: ../.git/modules/sub\n")
+	writeFile(t, filepath.Join(dir, "sub", "db", "schema.rb"), "create_table\n")
+	ws := apiWorkspace(root)
+	got, err := ws.Files(ws.Repos[0]).List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"a.txt"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("List = %v, want %v", got, want)
+	}
+}

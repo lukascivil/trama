@@ -27,7 +27,7 @@ func newSchemasCmd() *cobra.Command {
 			if !files.Cloned {
 				return fmt.Errorf(`repos/%s is not cloned: run "trama sync %s"`, name, name)
 			}
-			found, err := schemafind.Scan(files.List, files.Read)
+			found, err := schemafind.Scan(files.List, files.ReadAll)
 			if err != nil {
 				return fmt.Errorf("%s: %w", files.Place, err)
 			}

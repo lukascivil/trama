@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -57,5 +58,23 @@ func TestSchemasNotCloned(t *testing.T) {
 	}
 	if _, err := run(t, "schemas", "web", "--dir", ws); err == nil || err.Error() != `repos/web is not cloned: run "trama sync web"` {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestGraphCommandAcceptsTablesWarning(t *testing.T) {
+	ws := catalogWorkspace(t, cliAPI, cliWeb)
+	writeRepoFile(t, ws, "repos/api/db/schema.rb", "create_table\n")
+	writeRepoFile(t, ws, "AGENTS.md", markedAgents)
+	// The warning is there...
+	vout, err := run(t, "validate", "--dir", ws)
+	if err != nil || !strings.Contains(vout, "identity.tables") {
+		t.Fatalf("validate: %v\n%s", err, vout)
+	}
+	// ...and it is only a warning: the graph is still written.
+	if out, err := run(t, "graph", "--dir", ws); err != nil {
+		t.Fatalf("graph refused a catalog whose only finding is a warning: %v\n%s", err, out)
+	}
+	if _, err := os.Stat(filepath.Join(ws, "docs", "graph.md")); err != nil {
+		t.Fatalf("docs/graph.md not written: %v", err)
 	}
 }
