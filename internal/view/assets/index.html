@@ -5,37 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>trama graph</title>
 <link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
-<link id="__________cytoscape_stylesheet" rel="stylesheet" href="/assets/app.css">
+<link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
-<header id="top">
-  <span class="brand">trama</span>
-  <strong id="ws-name"></strong>
-  <span id="counts" class="muted"></span>
-  <span class="spacer"></span>
-  <input id="search" type="search" autocomplete="off" spellcheck="false">
-</header>
-<div id="banner" hidden>
-  <button id="banner-toggle" type="button"></button>
-  <ul id="banner-list" hidden></ul>
-</div>
-<main>
-  <aside id="filters">
-    <h2 data-i18n="relations"></h2>
-    <div id="kind-filters"></div>
-    <h2 data-i18n="view"></h2>
-    <label class="check"><input type="checkbox" id="hide-isolated"> <span data-i18n="hideIsolated"></span></label>
-    <label class="check"><input type="checkbox" id="only-changes"> <span data-i18n="onlyChanges"></span></label>
-    <h2 data-i18n="repos"></h2>
-    <div id="repo-filters"></div>
-  </aside>
-  <section id="graph-area">
-    <div id="cy"></div>
-    <div id="legend"></div>
-  </section>
-  <aside id="panel"></aside>
-</main>
-<script src="/assets/vendor/cytoscape.min.js"></script>
+<div id="root"></div>
 <script src="/assets/app.js"></script>
 </body>
 </html>

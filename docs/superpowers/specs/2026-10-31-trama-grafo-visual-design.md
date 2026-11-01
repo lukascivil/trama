@@ -2,6 +2,8 @@
 
 Desenho de uma fase nova, depois das fases 1 a 4 do [design do trama](2026-10-27-trama-design.md). Ela tira do MVP o não-objetivo "Portal, interface web ou dashboard", só para esta página local.
 
+> **Atualização (2026-11-01):** a página deixou o Cytoscape e o JavaScript sem build. Hoje é React Flow, gerado por Vite, e o anti-objetivo sobre Node passou a valer só para quem usa o trama. Veja [grafo em React Flow](2026-11-01-trama-grafo-react-flow-design.md). O resto deste documento (dados, segurança, aceite) continua valendo.
+
 ## 1. Intenção e porquê
 
 Nas palavras de quem pediu: o dev "quer saber todas as relações em todos os projetos que ele adicionou", "enxergar como se tudo fosse um único monorepo e trabalhar por ali tendo esse suporte visual", com a "data de release" de cada projeto, e "entender que subir algo num projeto" pode afetar outros. A referência é o `nx graph`: o dev roda um comando e abre no navegador.
