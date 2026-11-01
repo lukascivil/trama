@@ -4,15 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"maps"
-	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/lukascivil/trama/internal/catalog"
-	"github.com/lukascivil/trama/internal/gitx"
 	"github.com/lukascivil/trama/internal/workspace"
 )
 
@@ -167,6 +164,7 @@ type evidenceChecker struct {
 	notCloned bool
 	place     string                            // where files are read from, for messages
 	read      func(path string) ([]byte, error) // reads a file the card cites
+	list      func() ([]string, error)          // lists the files read can read
 	cache     map[string]readResult
 }
 
@@ -175,41 +173,12 @@ type readResult struct {
 	err  error
 }
 
-// newEvidenceChecker reads cited files from origin/<branch> when the clone
-// is a git repository that has it, so a local branch, local edits or ignored
-// files never change the result. A plain directory is read from disk.
+// newEvidenceChecker reads cited files the way ws.Files decides: from
+// origin/<branch> when the clone has it, so a local branch, local edits or
+// ignored files never change the result, and from the disk otherwise.
 func newEvidenceChecker(ws *workspace.Workspace, repo workspace.Repo, rep report) *evidenceChecker {
-	e := &evidenceChecker{rep: rep, cache: map[string]readResult{}}
-	dir := filepath.Join(ws.Root, "repos", repo.Name)
-	if _, err := os.Stat(dir); err != nil {
-		e.notCloned = true
-		return e
-	}
-	g := gitx.Repo{Dir: dir}
-	rev := "origin/" + repo.Branch
-	if g.IsRepo() {
-		if _, err := g.RevParse(rev); err == nil {
-			e.place = repoPath(repo.Name) + " at " + rev
-			e.read = func(path string) ([]byte, error) { return g.ReadFile(rev, path) }
-			return e
-		}
-	}
-	e.place = repoPath(repo.Name)
-	e.read = func(path string) ([]byte, error) { return readRegular(dir, path) }
-	return e
-}
-
-// readRegular reads dir/path from disk, refusing anything but a regular file.
-func readRegular(dir, path string) ([]byte, error) {
-	full := filepath.Join(dir, filepath.FromSlash(path))
-	fi, err := os.Lstat(full)
-	if err != nil {
-		return nil, fmt.Errorf("%s does not exist", path)
-	}
-	if !fi.Mode().IsRegular() {
-		return nil, fmt.Errorf("%s is not a regular file", path)
-	}
-	return os.ReadFile(full)
+	f := ws.Files(repo)
+	return &evidenceChecker{rep: rep, notCloned: !f.Cloned, place: f.Place, read: f.Read, list: f.List, cache: map[string]readResult{}}
 }
 
 func (e *evidenceChecker) load(path string) ([]byte, error) {

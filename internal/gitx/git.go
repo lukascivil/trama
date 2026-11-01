@@ -230,6 +230,28 @@ func (r Repo) ReadFile(rev, path string) ([]byte, error) {
 	return runRaw(r.Dir, "cat-file", "blob", f[2])
 }
 
+// ListFiles lists the regular files committed at rev: the ones ReadFile
+// can read. Symlinks and submodules are left out, so nothing listed here is
+// a file ReadFile would then refuse.
+func (r Repo) ListFiles(rev string) ([]string, error) {
+	out, err := runRaw(r.Dir, "ls-tree", "-r", "-z", rev)
+	if err != nil {
+		return nil, err
+	}
+	var files []string
+	for _, entry := range strings.Split(string(out), "\x00") {
+		meta, path, ok := strings.Cut(entry, "\t")
+		if !ok {
+			continue
+		}
+		f := strings.Fields(meta)
+		if len(f) == 3 && f[1] == "blob" && (f[0] == "100644" || f[0] == "100755") {
+			files = append(files, path)
+		}
+	}
+	return files, nil
+}
+
 // Tag is a tag name and its date: the tagger's for an annotated tag, the
 // commit's for a lightweight one, in strict ISO 8601.
 type Tag struct{ Name, Date string }
