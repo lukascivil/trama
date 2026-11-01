@@ -8,11 +8,11 @@ import (
 
 func TestNormalizeIDMatchesTheSameRouteWrittenDifferently(t *testing.T) {
 	same := [][2]string{
-		{"GET /resources/v2/stone-accounts/{stone_account_id}", "GET /resources/v2/stone-accounts/{id}"},
-		{"GET /resources/v2/stone-accounts/{stone_account_id}", "GET /resources/v2/stone-accounts/:stone_account_id"},
-		{"get /resources/v1/questionnaires", "GET /resources/v1/questionnaires"},
-		{"GET /resources/v1/questionnaires/", "GET /resources/v1/questionnaires"},
-		{"GET  /resources/v1/questionnaires", "GET /resources/v1/questionnaires"},
+		{"GET /v2/orders/{order_id}", "GET /v2/orders/{id}"},
+		{"GET /v2/orders/{order_id}", "GET /v2/orders/:order_id"},
+		{"get /v1/carts", "GET /v1/carts"},
+		{"GET /v1/carts/", "GET /v1/carts"},
+		{"GET  /v1/carts", "GET /v1/carts"},
 		{"PATCH /a/{x}/b/{y}", "PATCH /a/:p/b/:q"},
 	}
 	for _, p := range same {
@@ -24,8 +24,8 @@ func TestNormalizeIDMatchesTheSameRouteWrittenDifferently(t *testing.T) {
 
 func TestNormalizeIDKeepsDifferentRoutesApart(t *testing.T) {
 	differ := [][2]string{
-		{"GET /resources/v2/stone-accounts/{id}", "POST /resources/v2/stone-accounts/{id}"},
-		{"GET /resources/v1/questionnaires", "GET /resources/v2/questionnaires"},
+		{"GET /v2/orders/{id}", "POST /v2/orders/{id}"},
+		{"GET /v1/carts", "GET /v2/carts"},
 		{"GET /a/{x}", "GET /a/{x}/b"},
 		{"GET /a/b", "GET /a/{b}"},
 	}
@@ -38,7 +38,7 @@ func TestNormalizeIDKeepsDifferentRoutesApart(t *testing.T) {
 
 func TestNormalizeIDLeavesOtherKindsAlone(t *testing.T) {
 	for _, kind := range []string{"event", "package"} {
-		const topic = "quad_cmd_createQuestionnaire_0"
+		const topic = "orders_cmd_placeOrder_0"
 		if got := catalog.NormalizeID(kind, " "+topic+" "); got != topic {
 			t.Errorf("kind %s: got %q, want %q", kind, got, topic)
 		}

@@ -6,8 +6,8 @@ import "strings"
 // consumes against what another provides. For kind http it uppercases the
 // method and replaces every path parameter with {}, so the same route
 // matches however each side spells its parameters: the consumer's
-// "GET /stone-accounts/{stone_account_id}" and the router's
-// "GET /stone-accounts/:id" are the same route. Other kinds, such as a
+// "GET /orders/{order_id}" and the router's "GET /orders/:id" are the
+// same route. Other kinds, such as a
 // topic or a package, are matched by their exact id.
 func NormalizeID(kind, id string) string {
 	s := strings.TrimSpace(id)
