@@ -47,6 +47,7 @@ type Picker struct {
 	orgs       []string
 	orgsLoaded bool
 	added      []string
+	refused    []Refused // refusals of the Apply that ended the session
 
 	done     chan struct{}
 	finish   sync.Once
@@ -73,6 +74,14 @@ func (p *Picker) Added() []string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return append([]string(nil), p.added...)
+}
+
+// Refused returns what was refused in the Apply that added the repositories
+// and ended the session.
+func (p *Picker) Refused() []Refused {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return append([]Refused(nil), p.refused...)
 }
 
 // Wait blocks until the person adds something or cancels (nil), nothing asks
@@ -159,6 +168,7 @@ func (p *Picker) Apply(ctx context.Context, org string, ids []string) (AddResult
 	for _, a := range res.Added {
 		p.added = append(p.added, a.Name)
 	}
+	p.refused = res.Refused
 	p.end()
 	return res, nil
 }

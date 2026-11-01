@@ -208,3 +208,21 @@ func TestSaveFailureAddsNothing(t *testing.T) {
 		t.Fatalf("retry = %+v, %v", res, err)
 	}
 }
+
+func TestRefusedKeepsTheRefusalsOfTheFinalApply(t *testing.T) {
+	ws := newWorkspace(t)
+	p := newPicker(ws, "https", map[string][]github.Repo{"acme": {ghRepo("acme", "api"), ghRepo("acme", ".github")}})
+	if _, err := p.Apply(context.Background(), "acme", []string{"acme/.github"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Refused()) != 0 {
+		t.Fatalf("Refused() = %v before anything was added", p.Refused())
+	}
+	if _, err := p.Apply(context.Background(), "acme", []string{"acme/api", "acme/.github"}); err != nil {
+		t.Fatal(err)
+	}
+	got := p.Refused()
+	if len(got) != 1 || got[0].ID != "acme/.github" || !strings.Contains(got[0].Reason, "invalid repo name") {
+		t.Fatalf("Refused() = %+v", got)
+	}
+}
