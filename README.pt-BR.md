@@ -52,7 +52,7 @@ No Claude Code, a partir do workspace:
 - `/trama:add-repo <url>` adiciona um repositório, clona e mapeia. Sem URL (ou com o nome de uma organização), abre uma página na sua máquina que lista os repositórios da organização no GitHub, com filtro e checkboxes, e adiciona, clona e mapeia os que você marcar.
 - `/trama:map <repo>` (ou `--all`) lê um repositório e escreve a ficha dele, `catalog/<repo>.yaml`: stack, como rodar, o que expõe e consome, e a evidência `arquivo:linha` de cada fato. Quem liga um consumidor a um fornecedor é o `trama link`, e a regra é mecânica: a relação vai para o único repositório do workspace que serve aquela rota, publica aquele tópico ou é dono daquele pacote, e rotas casam mesmo quando cada lado escreve o parâmetro de caminho de um jeito. Quando dois repositórios servem a mesma coisa, a relação fica `from: unknown` com os dois como candidatos, para você resolver com um valor de configuração que bate com o host ou a porta de um deles, ou com um vínculo declarado no `workspace.yaml`.
 
-Depois, o `trama link` resolve as relações e o `trama graph` escreve o `docs/graph.md` e a tabela de repositórios no `AGENTS.md`. O `/trama:map` nunca faz commit: revise e commite `catalog/`, `docs/graph.md` e `AGENTS.md`.
+Depois, o `trama bodies` escreve o request e o response de cada rota que um spec OpenAPI 3 commitado declara, o `trama link` resolve as relações e o `trama graph` escreve o `docs/graph.md` e a tabela de repositórios no `AGENTS.md`. O `/trama:map` nunca faz commit: revise e commite `catalog/`, `docs/graph.md` e `AGENTS.md`.
 
 `trama graph --serve` abre no navegador um grafo interativo do workspace: cada repositório com a última release (a maior tag semver) e cada relação com a prova. Clique num repositório para ver quem pode ser afetado se você publicar algo ali: os consumidores diretos, com o `arquivo:linha` que prova; os indiretos, através de outros repositórios; e os possíveis, de relações sem prova. A busca vai além de repositório e id: digite um campo ou uma coluna, como `email`, e ela responde quem tem aquele dado — primeiro os endpoints que já devolvem ou recebem, depois as tabelas que guardam. O painel de um repositório mostra os campos de cada rota que ele serve e as tabelas de que é dono. Também tem filtros e foco nos vizinhos de um repositório. Tudo roda na sua máquina: o servidor escuta só em `127.0.0.1` e a página não carrega nada da internet.
 
@@ -75,6 +75,7 @@ Rode de qualquer lugar dentro do workspace (no seu terminal, via `mise exec -- t
 | `trama status [--quiet]` | Mostra branch, alterações locais, distância do remoto, estado da ficha e relações sem prova de cada repositório. Sem rede. `--quiet` mostra só os problemas. |
 | `trama validate` | Confere todas as fichas: campos obrigatórios, evidência que existe no clone e prova de cada relação. |
 | `trama stamp <repo>` | Grava na ficha o commit que ela descreve (`origin/<branch>`). Recusa se o clone não estiver limpo e atualizado. |
+| `trama bodies [repo...] [--dry-run]` | Escreve `request`, `response` e `contract` de cada rota que um spec OpenAPI 3 commitado no repositório declara, e remove o body que o spec não declara mais. O `contract` da rota decide o spec; sem ele, vale o único spec que declara a rota, e quando dois declaram, a rota fica para você definir o `contract`. Também aponta as rotas que um spec declara e a ficha não lista. |
 | `trama link [--dry-run]` | Liga cada `from: unknown` ao único repositório do workspace que fornece aquilo e grava a prova no `via`. Quando mais de um fornece, deixa os candidatos. |
 | `trama graph` | Escreve o `docs/graph.md` (Mermaid) e a tabela entre os marcadores do `AGENTS.md`. Recusa catálogo inválido. |
 | `trama graph --serve [--port <n>] [--no-open]` | Serve um grafo interativo do workspace em `127.0.0.1` (porta 7300, ou outra livre) e abre o navegador, até o Ctrl+C. Só lê; erros de validação aparecem na página. |
@@ -123,7 +124,7 @@ Os workspaces não precisam de nada: cada um roda o binário que combina com o p
 ## Limitações conhecidas
 
 - `trama add` regrava o `workspace.yaml` sem as linhas em branco. Comentários e campos desconhecidos são mantidos.
-- `trama stamp` regrava a ficha do mesmo jeito: as linhas em branco somem e os mapas em linha são compactados (`{ cmd: x }` vira `{cmd: x}`).
+- `trama stamp`, `trama bodies` e `trama link` regravam a ficha do mesmo jeito: as linhas em branco somem e os mapas em linha são compactados (`{ cmd: x }` vira `{cmd: x}`).
 
 ## Licença
 

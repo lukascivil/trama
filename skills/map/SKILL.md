@@ -20,7 +20,7 @@ A card describes the repository's main branch, and every fact in it is proven by
 In `repos/<name>`:
 - Read its `AGENTS.md`, `CLAUDE.md` and `README` first. They say how the team runs and tests it.
 - Read the manifests and version files that exist: `go.mod`, `package.json`, `.nvmrc`, `.tool-versions`, `.python-version`, `pyproject.toml`, `pom.xml`, `build.gradle`, `Dockerfile`, `compose.yaml`, `.env.example`.
-- Find the route table and the OpenAPI spec, if there is one: a committed `openapi.yaml` / `openapi.json` / `docs/*-api.yaml`, or the module that builds one at run time. Together with the router they are how you list every route the repository serves.
+- Find the route table: the router is where the routes the repository serves come from. Note also whether it commits an OpenAPI 3 spec (`openapi.yaml`, `docs/api.yaml`, or any YAML or JSON with `openapi: 3.x` at the top) or builds one at run time: `trama bodies` reads a committed one in step 5.
 - Run `trama schemas <name>`. It lists, the same way every time, the files that declare tables: schema files first (`schema.prisma`, `schema.rb`, `structure.sql`), then migrations, then `.sql` files that create a table. Open what it lists, the schema files first: when there is one, it is the current state of the database and saves rebuilding every table from its migrations. It does not find ORM entity classes, so when the repository uses an ORM, look for those yourself (`@Entity`, `class X(models.Model)`, a GORM model struct).
 - If the card already exists, run `git -C repos/<name> diff --stat <mapped_at_commit> HEAD` to see what changed. Still re-check every evidence line already in the card.
 
@@ -34,9 +34,9 @@ Write `catalog/<name>.yaml` following `${CLAUDE_PLUGIN_ROOT}/skills/map/card-ref
 Look for:
 - **provides**: list **every** route the repository serves (not CORS preflight handling), every topic it publishes, and every package other repositories import by name: published to any registry, public or the company's private one, or a Go module with packages others can import (not only `main` and `internal/`). Skip only packages marked never to be published, such as `"private": true` in `package.json`.
 
-  This list is what links other repositories to this one, so a route left out is a relation that stays unproven in someone else's card. Read the routes from the router (a `router.ex` scope tree, `huma.Register` calls, a framework's route table) or from the repository's OpenAPI spec, and cite the line you read. A spec's `servers:` usually points at a shared gateway, so it says nothing about who serves the route: take the paths from it, not the identity. A topic this repository publishes goes here with `kind: event` as well as in `identity.topics`.
+  This list is what links other repositories to this one, so a route left out is a relation that stays unproven in someone else's card. Read the routes from the router (a `router.ex` scope tree, `huma.Register` calls, a framework's route table) and cite the line you read. A committed spec can be behind or ahead of the router, so it is not where the routes come from: `trama bodies` uses it to check, and names the routes it declares that the card does not list. Only when the router itself is generated from the spec, read the routes from the spec. A spec's `servers:` usually points at a shared gateway, so it says nothing about who serves the route. A topic this repository publishes goes here with `kind: event` as well as in `identity.topics`.
 
-  Add `request` and `response` to a route when you can read its body: the handler's input and output types, the DTO or the validation schema it uses, or the repository's OpenAPI spec — citing the line you read, as everywhere else. These are what answer "does this field already come from an endpoint?", so write the fields the endpoint really returns, not the columns behind it. When you could not read the body, leave the map out instead of guessing; `contract` stays the pointer to the full spec. For `kind: event`, `response` is the payload it publishes.
+  Leave `request` and `response` out of a route that a committed OpenAPI 3 spec declares: `trama bodies` reads them from the spec in step 5, and writes the `contract` too. Copying them by hand does not scale and goes stale; the command rewrites them on every run. Write them yourself only for a route no committed spec declares (no spec, a spec served only at run time, Swagger 2.0, GraphQL, proto), from the handler's input and output types, the DTO or the validation schema it uses, citing the line you read. These are what answer "does this field already come from an endpoint?", so write the fields the endpoint really returns, not the columns behind it. When you could not read the body, leave the map out instead of guessing. For `kind: event`, `response` is the payload it publishes.
 - **identity**: ports it listens on (cite the line that sets the address; when the code relies on a framework default, cite the line of the repository's own docs that states the port); hosts listed for it under `hosts` in `workspace.yaml` (evidence `workspace.yaml`); the package name it publishes; topics it publishes; the tables it owns.
 - **identity.tables**: the tables this repository creates, with their columns. Read them where the schema is declared, and cite the line that creates the table, never one that queries it: a migration's `CREATE TABLE`, a declarative schema (`schema.prisma`, `schema.rb`, a `.sql` schema file), or the ORM entity class that maps the table. List the columns the table has, not the ones the code happens to read.
 
@@ -60,12 +60,16 @@ Never write `from` by hand because the names look alike, and never write `via: r
 
 When mapping several repositories, write all the cards first and run `trama link` once at the end: a provider mapped later resolves the consumes already written. Linking edits do not need a new stamp.
 
-## 5. Stamp, validate, graph
+## 5. Bodies, stamp, validate, graph
 
-1. Run `trama stamp <name>` for each card you wrote. It records the commit the card describes. Stamp again only when you change a card's own facts after stamping.
-2. Run `trama link` if you have not already, and read its output.
-3. Run `trama validate` and fix every error from the code. Never silence an error with evidence you did not read: remove the entry, or use `from: unknown`. A warning on `identity.tables` means the clone has schema files and the card lists no table: go back to what `trama schemas` lists and map the tables, or write `tables: []` if none of them is this repository's.
-4. When there are no errors, run `trama graph`.
+1. Run `trama bodies <name>` for each card you wrote, and read its output. It writes `request`, `response` and `contract` for every route a committed OpenAPI 3 spec declares, and removes a body the spec no longer declares. What it leaves is yours:
+   - **declared by two specs**: set `contract` to the one that serves the route (a path relative to the repository root) and run it again;
+   - **a body it cannot read** (a list, a `$ref` to another file): read it from the handler and write it by hand, or leave it out;
+   - **routes a spec declares that the card does not list**: open the router. Add the ones it serves; a route only the spec has is not one the repository serves.
+2. Run `trama stamp <name>` for each card you wrote. It records the commit the card describes. Stamp again only when you change a card's own facts after stamping; `trama bodies` edits facts, so it runs first.
+3. Run `trama link` if you have not already, and read its output.
+4. Run `trama validate` and fix every error from the code. Never silence an error with evidence you did not read: remove the entry, or use `from: unknown`. A warning on `identity.tables` means the clone has schema files and the card lists no table: go back to what `trama schemas` lists and map the tables, or write `tables: []` if none of them is this repository's. A warning on `provides` means a card is behind the OpenAPI spec that declares its routes: run `trama bodies <name>`.
+5. When there are no errors, run `trama graph`.
 
 ## 6. Report
 
@@ -73,5 +77,6 @@ Tell the user:
 - for each repository, the relations added, removed or changed (`git diff -- catalog/` shows them; a card that is new, or untracked in a workspace without commits, has every relation added);
 - what `trama link` resolved, and how many;
 - every `from: unknown` left, split into the ones nobody provides and the ones with candidates, and what would settle each (a route missing from a provider's card, a config value, a `links` entry);
+- what `trama bodies` wrote (how many routes got their bodies from a spec) and what it left, with why: routes two specs declare, bodies it could not read, and routes a spec declares that the router does not serve;
 - every repository you wrote `tables: []` for, with what `trama schemas` listed there and why none of it is a table the repository owns: that is a judgment, and the user should see it;
 - that nothing was committed: they review and commit `catalog/`, `docs/graph.md` and `AGENTS.md`.

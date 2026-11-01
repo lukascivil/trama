@@ -6,7 +6,6 @@
 package linker
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"slices"
@@ -16,6 +15,7 @@ import (
 	"github.com/lukascivil/trama/internal/catalog"
 	"github.com/lukascivil/trama/internal/fsx"
 	"github.com/lukascivil/trama/internal/workspace"
+	"github.com/lukascivil/trama/internal/yamlx"
 )
 
 // Change is one consume that Apply would rewrite. From is empty when the
@@ -133,14 +133,11 @@ func Apply(root string, changes []Change) error {
 // edit rewrites the consumes named by chs in the card bytes, keeping
 // everything else, including comments and the order of the keys.
 func edit(data []byte, chs []Change) ([]byte, error) {
-	var doc yaml.Node
-	if err := yaml.Unmarshal(data, &doc); err != nil {
+	doc, err := yamlx.Parse(data)
+	if err != nil {
 		return nil, err
 	}
-	if len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
-		return nil, fmt.Errorf("the card is not a YAML mapping")
-	}
-	consumes := field(doc.Content[0], "consumes")
+	consumes := yamlx.Field(doc.Content[0], "consumes")
 	if consumes == nil || consumes.Kind != yaml.SequenceNode {
 		return nil, fmt.Errorf("the card has no consumes list")
 	}
@@ -149,82 +146,16 @@ func edit(data []byte, chs []Change) ([]byte, error) {
 			return nil, fmt.Errorf("consumes[%d] is not in the card any more", ch.Index)
 		}
 		entry := consumes.Content[ch.Index]
-		if got := field(entry, "id"); got == nil || got.Value != ch.ID {
+		if got := yamlx.Field(entry, "id"); got == nil || got.Value != ch.ID {
 			return nil, fmt.Errorf("consumes[%d] is no longer %s", ch.Index, ch.ID)
 		}
 		if ch.From != "" {
-			setField(entry, "from", scalar(ch.From))
-			setField(entry, "via", scalar(ch.Via), "from")
-			removeField(entry, "candidates")
+			yamlx.Set(entry, "from", yamlx.Scalar(ch.From))
+			yamlx.Set(entry, "via", yamlx.Scalar(ch.Via), "from")
+			yamlx.Remove(entry, "candidates")
 			continue
 		}
-		setField(entry, "candidates", list(ch.Candidates), "via", "from")
+		yamlx.Set(entry, "candidates", yamlx.List(ch.Candidates), "via", "from")
 	}
-	var buf bytes.Buffer
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
-	if err := enc.Encode(&doc); err != nil {
-		return nil, err
-	}
-	if err := enc.Close(); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-// field returns the value of key in a mapping node, or nil.
-func field(m *yaml.Node, key string) *yaml.Node {
-	for i := 0; i+1 < len(m.Content); i += 2 {
-		if m.Content[i].Value == key {
-			return m.Content[i+1]
-		}
-	}
-	return nil
-}
-
-// setField sets key in a mapping node. A key that is not there yet goes
-// right after the first of after that is, so a card keeps reading in the
-// same order.
-func setField(m *yaml.Node, key string, value *yaml.Node, after ...string) {
-	for i := 0; i+1 < len(m.Content); i += 2 {
-		if m.Content[i].Value == key {
-			m.Content[i+1] = value
-			return
-		}
-	}
-	pos := len(m.Content)
-	for _, a := range after {
-		for i := 0; i+1 < len(m.Content); i += 2 {
-			if m.Content[i].Value == a {
-				pos = i + 2
-				break
-			}
-		}
-		if pos != len(m.Content) {
-			break
-		}
-	}
-	rest := slices.Clone(m.Content[pos:])
-	m.Content = append(append(m.Content[:pos:pos], scalar(key), value), rest...)
-}
-
-func removeField(m *yaml.Node, key string) {
-	for i := 0; i+1 < len(m.Content); i += 2 {
-		if m.Content[i].Value == key {
-			m.Content = append(m.Content[:i:i], m.Content[i+2:]...)
-			return
-		}
-	}
-}
-
-func scalar(s string) *yaml.Node {
-	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: s}
-}
-
-func list(values []string) *yaml.Node {
-	n := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq", Style: yaml.FlowStyle}
-	for _, v := range values {
-		n.Content = append(n.Content, scalar(v))
-	}
-	return n
+	return yamlx.Encode(doc)
 }

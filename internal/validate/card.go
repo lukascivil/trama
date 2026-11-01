@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"maps"
+	"path"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/lukascivil/trama/internal/bodies"
 	"github.com/lukascivil/trama/internal/catalog"
 	"github.com/lukascivil/trama/internal/schemafind"
 	"github.com/lukascivil/trama/internal/workspace"
@@ -96,8 +98,10 @@ func checkCard(ws *workspace.Workspace, repo workspace.Repo, c *catalog.Card, re
 		where := strings.TrimSpace(fmt.Sprintf("provides[%d] %s", i, p.ID))
 		checkKindID(rep, where, p.Kind, p.ID)
 		checkBodies(rep, where, p)
+		ev.contract(where, p.Contract)
 		ev.check(where, p.Evidence, false)
 	}
+	checkSpecBodies(rep, ev, repo.Name, c)
 	for i, cs := range c.Consumes {
 		where := strings.TrimSpace(fmt.Sprintf("consumes[%d] %s", i, cs.ID))
 		checkKindID(rep, where, cs.Kind, cs.ID)
@@ -144,6 +148,35 @@ func checkTablesMapped(rep report, ev *evidenceChecker, c *catalog.Card) {
 		files = fmt.Sprintf("%d schema files", len(found))
 	}
 	rep.warnf("identity.tables", `%s has %s (%s) but the card lists no tables: map them, or write "tables: []" if this repository owns none`, ev.place, files, sample)
+}
+
+// checkSpecBodies warns, once per card, when a route an OpenAPI spec of the
+// repository declares has bodies, or lacks a contract, other than what
+// "trama bodies" would write. The card is still valid, only behind the spec.
+// The notes of trama bodies (an ambiguous route, a body that is a list) are
+// for whoever runs it, and nothing is said about a repository that is not
+// cloned.
+func checkSpecBodies(rep report, ev *evidenceChecker, name string, c *catalog.Card) {
+	if ev.notCloned {
+		return
+	}
+	chs, _ := bodies.ForCard(name, c, workspace.Files{Place: ev.place, Cloned: true, List: ev.list, Read: ev.load, ReadAll: ev.readAll})
+	if len(chs) == 0 {
+		return
+	}
+	ids := make([]string, 0, 3)
+	for _, ch := range chs[:min(3, len(chs))] {
+		ids = append(ids, ch.ID)
+	}
+	sample := strings.Join(ids, ", ")
+	if len(chs) > 3 {
+		sample += ", …"
+	}
+	if len(chs) == 1 {
+		rep.warnf("provides", `1 provide differs from the OpenAPI spec that declares it (%s): run "trama bodies %s"`, sample, name)
+		return
+	}
+	rep.warnf("provides", `%d provides differ from the OpenAPI spec that declares them (%s): run "trama bodies %s"`, len(chs), sample, name)
 }
 
 // checkBodies validates the request and response field maps of a provide:
@@ -259,6 +292,24 @@ func (e *evidenceChecker) check(where string, list []string, declaredOK bool) bo
 		}
 	}
 	return ok
+}
+
+// contract checks that a provide's contract is a file of the repository, as
+// an evidence path must be.
+func (e *evidenceChecker) contract(where, contract string) {
+	if contract == "" {
+		return
+	}
+	if err := catalog.ValidateContract(contract); err != nil {
+		e.rep.errorf(where, "%s", err)
+		return
+	}
+	if e.notCloned {
+		return
+	}
+	if _, err := e.load(path.Clean(strings.TrimSpace(contract))); err != nil {
+		e.rep.errorf(where, "contract %s: %s (in %s)", contract, err, e.place)
+	}
 }
 
 func countLines(data []byte) int {
