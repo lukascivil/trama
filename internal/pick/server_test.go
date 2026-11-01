@@ -1,6 +1,7 @@
 package pick
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -96,9 +97,7 @@ func TestReposUsesTheOrgOfTheOptions(t *testing.T) {
 
 func TestBlockedMarksWorkspaceRepos(t *testing.T) {
 	ws := newWorkspace(t)
-	if err := ws.AddRepo(workspace.Repo{Name: "api", URL: "https://github.com/acme/api.git", Branch: "main"}); err != nil {
-		t.Fatal(err)
-	}
+	writeOutside(t, ws, "api")
 	p := newPicker(ws, "https", map[string][]github.Repo{"acme": {ghRepo("acme", "api"), ghRepo("acme", "web"), ghRepo("acme", ".github")}})
 	blocked := map[string]string{}
 	for _, r := range getRepos(t, p.Handler(port), "/api/repos").Repos {
@@ -290,5 +289,67 @@ func TestPageIsServed(t *testing.T) {
 	h := newPicker(newWorkspace(t), "https", nil).Handler(port)
 	if rec := do(t, h, http.MethodGet, "/", local, "", nil); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "<html") {
 		t.Fatalf("GET / = %d: %s", rec.Code, rec.Body)
+	}
+}
+
+func TestBlockedSeesWhatWasAddedMeanwhile(t *testing.T) {
+	ws := newWorkspace(t)
+	p := newPicker(ws, "https", map[string][]github.Repo{"acme": {ghRepo("acme", "api")}})
+	h := p.Handler(port)
+	if got := getRepos(t, h, "/api/repos").Repos[0].Blocked; got != "" {
+		t.Fatalf("blocked before = %q", got)
+	}
+	writeOutside(t, ws, "api")
+	if got := getRepos(t, h, "/api/repos").Repos[0].Blocked; !strings.Contains(got, "already in") {
+		t.Fatalf("blocked after = %q, want the repo to show as already there", got)
+	}
+}
+
+func TestListErrorIsLogged(t *testing.T) {
+	var log bytes.Buffer
+	p := New(Options{
+		Workspace: newWorkspace(t),
+		Org:       "acme",
+		Log:       &log,
+		List: func(context.Context, string) ([]github.Repo, error) {
+			return nil, &github.APIError{Status: 403, Message: "Resource protected by organization SAML enforcement"}
+		},
+	})
+	do(t, p.Handler(port), http.MethodGet, "/api/repos", local, "", nil)
+	if !strings.Contains(log.String(), "SAML enforcement") || !strings.Contains(log.String(), "acme") {
+		t.Fatalf("log = %q", log.String())
+	}
+}
+
+func TestPrefetchWarmsTheCacheOnce(t *testing.T) {
+	calls := 0
+	p := New(Options{
+		Workspace: newWorkspace(t),
+		Org:       "acme",
+		List: func(context.Context, string) ([]github.Repo, error) {
+			calls++
+			return []github.Repo{ghRepo("acme", "api")}, nil
+		},
+	})
+	if err := p.Prefetch(context.Background(), "acme"); err != nil {
+		t.Fatal(err)
+	}
+	getRepos(t, p.Handler(port), "/api/repos")
+	if _, err := p.Apply(context.Background(), "acme", []string{"acme/api"}); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("GitHub was asked %d times, want 1", calls)
+	}
+}
+
+func TestPrefetchReturnsTheError(t *testing.T) {
+	boom := errors.New("github: 403 denied")
+	p := New(Options{
+		Workspace: newWorkspace(t),
+		List:      func(context.Context, string) ([]github.Repo, error) { return nil, boom },
+	})
+	if err := p.Prefetch(context.Background(), "acme"); !errors.Is(err, boom) {
+		t.Fatalf("Prefetch = %v, want %v", err, boom)
 	}
 }

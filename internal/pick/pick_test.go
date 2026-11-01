@@ -226,3 +226,50 @@ func TestRefusedKeepsTheRefusalsOfTheFinalApply(t *testing.T) {
 		t.Fatalf("Refused() = %+v", got)
 	}
 }
+
+// writeOutside adds a repo to workspace.yaml the way "trama add" would, from
+// another process, while the picker is open.
+func writeOutside(t *testing.T, ws *workspace.Workspace, name string) {
+	t.Helper()
+	other, err := workspace.Load(ws.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := other.AddRepo(workspace.Repo{Name: name, URL: "https://github.com/acme/" + name + ".git", Branch: "main"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := other.Save(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestApplyKeepsWhatWasWrittenMeanwhile(t *testing.T) {
+	ws := newWorkspace(t)
+	p := newPicker(ws, "https", map[string][]github.Repo{"acme": {ghRepo("acme", "api"), ghRepo("acme", "web")}})
+	writeOutside(t, ws, "cron")
+
+	res, err := p.Apply(context.Background(), "acme", []string{"acme/api"})
+	if err != nil || len(res.Added) != 1 {
+		t.Fatalf("result = %+v, %v", res, err)
+	}
+	got := reload(t, ws)
+	for _, name := range []string{"cron", "api"} {
+		if _, ok := got.Repo(name); !ok {
+			t.Errorf("%s is missing from workspace.yaml after Apply", name)
+		}
+	}
+}
+
+func TestApplyRefusesWhatWasAddedMeanwhile(t *testing.T) {
+	ws := newWorkspace(t)
+	p := newPicker(ws, "https", map[string][]github.Repo{"acme": {ghRepo("acme", "api")}})
+	writeOutside(t, ws, "api")
+
+	res, err := p.Apply(context.Background(), "acme", []string{"acme/api"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Added) != 0 || len(res.Refused) != 1 || !strings.Contains(res.Refused[0].Reason, "already in") {
+		t.Fatalf("result = %+v", res)
+	}
+}

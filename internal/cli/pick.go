@@ -33,6 +33,7 @@ var (
 // and everything else go to stderr, so a caller can read stdout as a list.
 // A signal or a cancelled context returns runner.ErrInterrupted.
 func runPick(cmd *cobra.Command, ws *workspace.Workspace, org string, port int, explicit, open bool) error {
+	out, errOut := cmd.OutOrStdout(), cmd.ErrOrStderr()
 	token := github.Token(ghRun, os.Getenv)
 	client := github.NewClient(token)
 	client.BaseURL = githubAPI
@@ -43,7 +44,14 @@ func runPick(cmd *cobra.Command, ws *workspace.Workspace, org string, port int, 
 		List:          client.Repos,
 		Protocol:      github.Protocol(ghRun),
 		Authenticated: token != "",
+		Log:           errOut,
 	})
+	if org != "" {
+		// Fail before opening a page, with GitHub's own message.
+		if err := p.Prefetch(cmd.Context(), org); err != nil {
+			return fmt.Errorf("listing %s: %w", org, err)
+		}
+	}
 
 	ln, err := listenLocal(port, explicit)
 	if err != nil {
@@ -51,7 +59,6 @@ func runPick(cmd *cobra.Command, ws *workspace.Workspace, org string, port int, 
 	}
 	port = ln.Addr().(*net.TCPAddr).Port
 	url := fmt.Sprintf("http://127.0.0.1:%d/", port)
-	out, errOut := cmd.OutOrStdout(), cmd.ErrOrStderr()
 	fmt.Fprintf(errOut, "serving %s (Ctrl+C to stop)\n", url)
 	if open {
 		if err := openURL(url); err != nil {

@@ -210,3 +210,50 @@ func TestOrgsWithoutTokenIsEmpty(t *testing.T) {
 		t.Fatalf("orgs = %v, err = %v, requests = %d", orgs, err, hits.Load())
 	}
 }
+
+func TestReposOfTheTokenOwnerIncludePrivate(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/orgs/lucas/repos":
+			w.WriteHeader(http.StatusNotFound)
+			writeJSON(w, map[string]string{"message": "Not Found"})
+		case "/user":
+			writeJSON(w, map[string]string{"login": "Lucas"})
+		case "/user/repos":
+			if r.URL.Query().Get("affiliation") != "owner" {
+				t.Errorf("affiliation = %q, want owner", r.URL.Query().Get("affiliation"))
+			}
+			writeJSON(w, []map[string]any{repoJSON(1), repoJSON(2)})
+		default:
+			t.Errorf("unexpected path %s: the public listing hides private repositories", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	repos, err := client(srv, "SECRET").Repos(context.Background(), "lucas")
+	if err != nil || len(repos) != 2 {
+		t.Fatalf("repos = %+v, err = %v", repos, err)
+	}
+}
+
+func TestReposOfAnotherUserStayPublic(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/orgs/someone/repos":
+			w.WriteHeader(http.StatusNotFound)
+			writeJSON(w, map[string]string{"message": "Not Found"})
+		case "/user":
+			writeJSON(w, map[string]string{"login": "me"})
+		case "/users/someone/repos":
+			writeJSON(w, []map[string]any{repoJSON(1)})
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	repos, err := client(srv, "SECRET").Repos(context.Background(), "someone")
+	if err != nil || len(repos) != 1 {
+		t.Fatalf("repos = %+v, err = %v", repos, err)
+	}
+}

@@ -6,6 +6,7 @@ package github
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -56,10 +57,33 @@ func (e *APIError) Error() string { return fmt.Sprintf("github: %d %s", e.Status
 func (c *Client) Repos(ctx context.Context, org string) ([]Repo, error) {
 	name := url.PathEscape(org)
 	repos, err := getAll[Repo](ctx, c, c.BaseURL+"/orgs/"+name+"/repos?per_page=100&type=all")
-	if e, ok := err.(*APIError); ok && e.Status == http.StatusNotFound {
-		return getAll[Repo](ctx, c, c.BaseURL+"/users/"+name+"/repos?per_page=100&type=all")
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) || apiErr.Status != http.StatusNotFound {
+		return repos, err
 	}
-	return repos, err
+	// /users/{login}/repos shows public repositories only, even to the token's
+	// own owner, so the owner's own account is listed through /user/repos.
+	if c.Token != "" {
+		if login, err := c.login(ctx); err == nil && strings.EqualFold(login, org) {
+			return getAll[Repo](ctx, c, c.BaseURL+"/user/repos?per_page=100&affiliation=owner")
+		}
+	}
+	return getAll[Repo](ctx, c, c.BaseURL+"/users/"+name+"/repos?per_page=100&type=all")
+}
+
+// login returns the login of the token's owner.
+func (c *Client) login(ctx context.Context) (string, error) {
+	body, _, err := c.get(ctx, c.BaseURL+"/user")
+	if err != nil {
+		return "", err
+	}
+	var me struct {
+		Login string `json:"login"`
+	}
+	if err := json.Unmarshal(body, &me); err != nil {
+		return "", fmt.Errorf("github: reading /user: %w", err)
+	}
+	return me.Login, nil
 }
 
 // Orgs lists the account of the token's owner and then its organizations.
@@ -68,15 +92,9 @@ func (c *Client) Orgs(ctx context.Context) ([]string, error) {
 	if c.Token == "" {
 		return nil, nil
 	}
-	var me struct {
-		Login string `json:"login"`
-	}
-	body, _, err := c.get(ctx, c.BaseURL+"/user")
+	login, err := c.login(ctx)
 	if err != nil {
 		return nil, err
-	}
-	if err := json.Unmarshal(body, &me); err != nil {
-		return nil, fmt.Errorf("github: reading /user: %w", err)
 	}
 	orgs, err := getAll[struct {
 		Login string `json:"login"`
@@ -84,7 +102,7 @@ func (c *Client) Orgs(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	logins := []string{me.Login}
+	logins := []string{login}
 	for _, o := range orgs {
 		logins = append(logins, o.Login)
 	}

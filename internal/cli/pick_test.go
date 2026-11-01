@@ -25,7 +25,11 @@ const pickToken = "SECRET-TOKEN"
 
 // fakeGitHub serves the three repositories of the organization "acme" and
 // records the Authorization header of every request.
-func fakeGitHub(t *testing.T) *[]string {
+func fakeGitHub(t *testing.T) *[]string { return startFakeGitHub(t, false) }
+
+// startFakeGitHub is fakeGitHub; with deny, listing "acme" answers 403 and
+// the message repeats the Authorization header, as a careless proxy might.
+func startFakeGitHub(t *testing.T, deny bool) *[]string {
 	t.Helper()
 	var mu sync.Mutex
 	var auth []string
@@ -43,6 +47,11 @@ func fakeGitHub(t *testing.T) *[]string {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/orgs/acme/repos":
+			if deny {
+				w.WriteHeader(http.StatusForbidden)
+				_ = json.NewEncoder(w).Encode(map[string]string{"message": "denied for " + r.Header.Get("Authorization")})
+				return
+			}
 			_ = json.NewEncoder(w).Encode([]map[string]any{repo("api"), repo("web"), repo(".github")})
 		case "/user":
 			fmt.Fprint(w, `{"login":"me"}`)
@@ -338,6 +347,60 @@ func TestPickFlagRules(t *testing.T) {
 		err := cmd.Execute()
 		if err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: err = %v, want it to contain %q", name, err, c.want)
+		}
+	}
+}
+
+func TestPickFailsFastWhenGitHubRefuses(t *testing.T) {
+	startFakeGitHub(t, true)
+	noBrowser(t)
+	ws := newWorkspace(t)
+	before := workspaceFile(t, ws)
+
+	out, err := run(t, "add", "--pick", "acme", "--no-open", "--port", "0", "--dir", ws)
+	if err == nil || !strings.Contains(err.Error(), "denied for") {
+		t.Fatalf("err = %v, want GitHub's message", err)
+	}
+	if strings.Contains(err.Error()+out, pickToken) {
+		t.Fatalf("the token is in the error or the output:\n%v\n%s", err, out)
+	}
+	if strings.Contains(out, "serving") {
+		t.Fatalf("a page was served although the listing failed:\n%s", out)
+	}
+	if workspaceFile(t, ws) != before {
+		t.Fatal("workspace.yaml changed")
+	}
+}
+
+func TestPickPageAndTerminalNeverCarryTheGitHubToken(t *testing.T) {
+	startFakeGitHub(t, true)
+	noBrowser(t)
+	ws := newWorkspace(t)
+	url, stdout, stderr, cancel, done := servePick(t, "add", "--pick", "--no-open", "--port", "0", "--dir", ws)
+
+	bodies := ""
+	for _, target := range []string{"api/repos", "api/repos?org=acme"} {
+		res, err := http.Get(url + target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var buf bytes.Buffer
+		buf.ReadFrom(res.Body)
+		res.Body.Close()
+		bodies += buf.String()
+	}
+	cancel()
+	ended(t, done)
+
+	if !strings.Contains(bodies, "denied for") {
+		t.Fatalf("GitHub's message did not reach the page:\n%s", bodies)
+	}
+	if !strings.Contains(stderr.String(), "denied for") {
+		t.Fatalf("GitHub's message did not reach the terminal:\n%s", stderr)
+	}
+	for name, text := range map[string]string{"page": bodies, "stdout": stdout.String(), "stderr": stderr.String()} {
+		if strings.Contains(text, pickToken) {
+			t.Errorf("the GitHub token is in the %s:\n%s", name, text)
 		}
 	}
 }

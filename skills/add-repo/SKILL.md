@@ -22,7 +22,7 @@ Arguments: a repository URL with optional `--name <name>` and `--branch <branch>
 ## Pick from an organization
 
 1. Run `trama add --pick [<org>]` **in the background** (it waits for a person, and can take minutes). Tell the user that a page opened in their browser, where they filter, tick the repositories and press Add. If no page opened, give them the URL printed on stderr. Then wait for the command to end.
-2. If it fails, show the error and stop. A GitHub error such as an SSO or rate-limit message is theirs to fix; do not retry in a loop.
+2. If it fails, show the error and stop. With an organization it lists before opening the page, so a GitHub refusal (SSO not authorized, rate limit, no such organization) comes back as the error, with GitHub's own message: it is theirs to fix, so do not retry in a loop. It also ends with an error when the page sat 30 minutes without a request; offer to run it again.
 3. Read its stdout: the names of the repositories that were added, one per line. Lines on stderr that start with `refused` say which ones were not added and why: tell the user.
 4. If stdout is empty, tell the user nothing was added and stop.
 5. Run `trama sync <name>...` with all the names.

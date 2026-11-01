@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"embed"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"mime"
 	"net/http"
@@ -103,6 +104,13 @@ func (p *Picker) handleRepos(w http.ResponseWriter, r *http.Request) {
 		repos, err := p.listLocked(r.Context(), org)
 		if err != nil {
 			out.Error = err.Error()
+			if p.o.Log != nil {
+				fmt.Fprintf(p.o.Log, "listing %s: %v\n", org, err)
+			}
+		}
+		ws, wsErr := p.freshLocked()
+		if wsErr != nil && out.Error == "" {
+			out.Error = wsErr.Error()
 		}
 		for _, repo := range repos {
 			v := repoView{
@@ -113,8 +121,10 @@ func (p *Picker) handleRepos(w http.ResponseWriter, r *http.Request) {
 				v.PushedAt = repo.PushedAt.UTC().Format(time.RFC3339)
 			}
 			url := p.cloneURL(repo)
-			if err := p.o.Workspace.CheckNew(workspace.NameFromURL(url), url); err != nil {
-				v.Blocked = err.Error()
+			if ws != nil {
+				if err := ws.CheckNew(workspace.NameFromURL(url), url); err != nil {
+					v.Blocked = err.Error()
+				}
 			}
 			out.Repos = append(out.Repos, v)
 		}

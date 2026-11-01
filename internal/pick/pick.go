@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -35,6 +36,9 @@ type Options struct {
 	// Authenticated is false when the listing is anonymous, so the page can
 	// say that private repositories are missing.
 	Authenticated bool
+	// Log, when set, receives one line for every failed listing, so the
+	// terminal sees what the page shows. Lines never hold the token.
+	Log io.Writer
 }
 
 // Picker holds one choice session.
@@ -68,6 +72,15 @@ func New(o Options) *Picker {
 func (p *Picker) touch() { p.lastSeen.Store(time.Now().UnixNano()) }
 
 func (p *Picker) end() { p.finish.Do(func() { close(p.done) }) }
+
+// Prefetch lists org now, so a refusal from GitHub shows before any page is
+// opened and the page starts with the list in hand.
+func (p *Picker) Prefetch(ctx context.Context, org string) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	_, err := p.listLocked(ctx, org)
+	return err
+}
 
 // Added returns the names of the repositories added so far, in order.
 func (p *Picker) Added() []string {
@@ -126,8 +139,9 @@ type AddResult struct {
 
 // Apply adds the repositories of org whose ids (owner/name) are given. Every
 // id is resolved against the list this picker loaded itself, and each repo
-// goes through the checks of "trama add". The file is written once, with the
-// ones that passed. Adding at least one ends the session.
+// goes through the checks of "trama add" against workspace.yaml as it is on
+// disk now, so what was written while the page was open is kept. The file is
+// written once, with the ones that passed. Adding at least one ends the session.
 func (p *Picker) Apply(ctx context.Context, org string, ids []string) (AddResult, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -139,7 +153,10 @@ func (p *Picker) Apply(ctx context.Context, org string, ids []string) (AddResult
 	for _, r := range repos {
 		byID[r.FullName] = r
 	}
-	ws := p.o.Workspace
+	ws, err := p.freshLocked()
+	if err != nil {
+		return AddResult{}, err
+	}
 	res := AddResult{Added: []AddedRepo{}, Refused: []Refused{}}
 	for _, id := range ids {
 		r, ok := byID[id]
@@ -159,10 +176,6 @@ func (p *Picker) Apply(ctx context.Context, org string, ids []string) (AddResult
 		return res, nil
 	}
 	if err := ws.Save(); err != nil {
-		// Drop what AddRepo put in memory, so a retry starts from the file.
-		if fresh, loadErr := workspace.Load(ws.Root); loadErr == nil {
-			p.o.Workspace = fresh
-		}
 		return AddResult{}, fmt.Errorf("saving workspace.yaml: %w", err)
 	}
 	for _, a := range res.Added {
@@ -171,6 +184,12 @@ func (p *Picker) Apply(ctx context.Context, org string, ids []string) (AddResult
 	p.refused = res.Refused
 	p.end()
 	return res, nil
+}
+
+// freshLocked reads workspace.yaml again. The picker can stay open for a long
+// time, and "trama add" or a person may change the file meanwhile.
+func (p *Picker) freshLocked() (*workspace.Workspace, error) {
+	return workspace.Load(p.o.Workspace.Root)
 }
 
 func (p *Picker) cloneURL(r github.Repo) string {
