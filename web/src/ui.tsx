@@ -42,14 +42,42 @@ export function FilterBox({ value, onChange }: { value: string; onChange: (v: st
   );
 }
 
-export function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
+// With `onToggle` the heading becomes a button that closes and opens the
+// section, so a long list can be folded out of the way.
+export function Section({
+  title,
+  count,
+  open = true,
+  onToggle,
+  children,
+}: {
+  title: string;
+  count?: number;
+  open?: boolean;
+  onToggle?: () => void;
+  children: ReactNode;
+}) {
+  const label = (
+    <>
+      {title}
+      {count !== undefined && <span className="count">{count}</span>}
+    </>
+  );
   return (
     <section className="section">
       <h3>
-        {title}
-        {count !== undefined && <span className="count">{count}</span>}
+        {onToggle ? (
+          <button type="button" className="fold" aria-expanded={open} title={open ? T.collapse : T.expand} onClick={onToggle}>
+            <span className="chevron" aria-hidden="true">
+              {open ? "▾" : "▸"}
+            </span>
+            {label}
+          </button>
+        ) : (
+          label
+        )}
       </h3>
-      {children}
+      {open && children}
     </section>
   );
 }
