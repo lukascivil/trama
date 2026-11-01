@@ -82,6 +82,7 @@ Rode de qualquer lugar dentro do workspace (no seu terminal, via `mise exec -- t
 | `trama test [repo...]` | Roda o `run.test` de cada repositório, depois do setup quando preciso, e mostra `passed` ou `failed` para cada um. |
 | `trama up [repo...]` | Roda o `run.dev` de todos os repositórios ao mesmo tempo, cada linha com o nome do repositório. Recusa subir se uma porta de dev já estiver em uso. Ctrl+C para todos os processos, inclusive os filhos. |
 | `trama uses <id>` | Lista os repositórios que fornecem ou consomem um id (ex.: `"GET /hello"`), com as evidências. |
+| `trama data <termo>` | Lista o que tem um dado (ex.: `email`), com as evidências: primeiro os endpoints cujo `response` ou `request` tem um campo que casa, depois as tabelas cujas colunas casam. A ordem é a resposta — um endpoint que já devolve o dado dá para chamar hoje; uma tabela quer dizer que o dado existe e o dono ainda não o expôs. |
 | `trama branch <repo> <nome>` | Cria uma branch a partir da branch principal atualizada do repositório; recusa repositório com alterações locais ou em outra branch. `--main` volta para a principal. |
 | `trama pr <repo> --title T --body-file F [--draft]` | Envia a branch atual e abre um PR com o `gh`. Recusa a branch principal. |
 | `trama changes [--no-push]` | Atualiza cada registro de mudança aberto a partir dos PRs, depois commita e envia os registros. `trama changes save <id>` commita e envia um registro. |
