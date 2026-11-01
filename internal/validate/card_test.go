@@ -258,3 +258,63 @@ func TestCardBodiesOK(t *testing.T) {
 		t.Fatalf("findings = %v", fs)
 	}
 }
+
+// withTables returns the api card with a tables block added to identity.
+func withTables(block string) string {
+	const ports = `  ports: [{ value: 8080, evidence: ["cmd/api/main.go:11"] }]`
+	return strings.Replace(demoAPI, ports, ports+"\n"+block, 1)
+}
+
+func TestCardTableWithoutColumns(t *testing.T) {
+	f := demo(t)
+	f.card("trama-demo-api", withTables(`  tables:
+    - value: users
+      evidence: ["cmd/api/main.go:11"]`))
+	if fs := f.findings(); !hasError(fs, "identity.tables[0] users", "columns") {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardTableInvalidColumn(t *testing.T) {
+	f := demo(t)
+	f.card("trama-demo-api", withTables(`  tables:
+    - value: users
+      columns: [id, "a b"]
+      evidence: ["cmd/api/main.go:11"]`))
+	if fs := f.findings(); !hasError(fs, "identity.tables[0] users", "a b") {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardTableInvalidName(t *testing.T) {
+	f := demo(t)
+	f.card("trama-demo-api", withTables(`  tables:
+    - value: "a.b.c"
+      columns: [id]
+      evidence: ["cmd/api/main.go:11"]`))
+	if fs := f.findings(); !hasError(fs, "identity.tables[0] a.b.c", "a.b.c") {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardTableNoEvidence(t *testing.T) {
+	f := demo(t)
+	f.card("trama-demo-api", withTables(`  tables:
+    - value: users
+      columns: [id]
+      evidence: []`))
+	if fs := f.findings(); !hasError(fs, "identity.tables[0] users", "no evidence") {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardTableOK(t *testing.T) {
+	f := demo(t)
+	f.card("trama-demo-api", withTables(`  tables:
+    - value: public.users
+      columns: [id, email]
+      evidence: ["cmd/api/main.go:11"]`))
+	if fs := f.findings(); len(fs) != 0 {
+		t.Fatalf("findings = %v", fs)
+	}
+}

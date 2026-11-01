@@ -78,6 +78,21 @@ func checkCard(ws *workspace.Workspace, repo workspace.Repo, c *catalog.Card, re
 	for i, tp := range c.Identity.Topics {
 		ev.check(fmt.Sprintf("identity.topics[%d]", i), tp.Evidence, false)
 	}
+	for i, tb := range c.Identity.Tables {
+		where := strings.TrimSpace(fmt.Sprintf("identity.tables[%d] %s", i, tb.Value))
+		if err := catalog.ValidateTable(tb.Value); err != nil {
+			rep.errorf(where, "%s", err)
+		}
+		if len(tb.Columns) == 0 {
+			rep.errorf(where, "no columns: list the table's columns, or the table answers nothing")
+		}
+		for _, col := range tb.Columns {
+			if err := catalog.ValidateColumn(col); err != nil {
+				rep.errorf(where, "%s", err)
+			}
+		}
+		ev.check(where, tb.Evidence, false)
+	}
 	for i, p := range c.Provides {
 		where := strings.TrimSpace(fmt.Sprintf("provides[%d] %s", i, p.ID))
 		checkKindID(rep, where, p.Kind, p.ID)

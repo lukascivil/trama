@@ -49,6 +49,9 @@ func citedLines(t *testing.T, c *catalog.Card) map[string]int {
 	for _, p := range c.Identity.Ports {
 		all = append(all, p.Evidence...)
 	}
+	for _, tb := range c.Identity.Tables {
+		all = append(all, tb.Evidence...)
+	}
 	for _, p := range c.Provides {
 		all = append(all, p.Evidence...)
 	}

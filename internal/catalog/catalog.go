@@ -78,10 +78,19 @@ type PortFact struct {
 
 // Identity is how other repositories can recognize this one.
 type Identity struct {
-	Ports   []PortFact `yaml:"ports,omitempty"`
-	Hosts   []Fact     `yaml:"hosts,omitempty"`
-	Package *Fact      `yaml:"package,omitempty"`
-	Topics  []Fact     `yaml:"topics,omitempty"`
+	Ports   []PortFact  `yaml:"ports,omitempty"`
+	Hosts   []Fact      `yaml:"hosts,omitempty"`
+	Package *Fact       `yaml:"package,omitempty"`
+	Topics  []Fact      `yaml:"topics,omitempty"`
+	Tables  []TableFact `yaml:"tables,omitempty"`
+}
+
+// TableFact is a table the repository owns: the name other repositories
+// would look for, its columns, and the evidence that proves it.
+type TableFact struct {
+	Value    string   `yaml:"value"`
+	Columns  []string `yaml:"columns"`
+	Evidence []string `yaml:"evidence"`
 }
 
 // Provide is something the repository offers to others.

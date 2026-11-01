@@ -27,6 +27,9 @@ One card per repository, at `catalog/<name>.yaml`. `trama validate` checks every
 | `hosts` | `{value: api.acme.com, evidence: [workspace.yaml]}` | only hosts listed for this repository under `hosts` in `workspace.yaml` |
 | `package` | `{value: "@acme/ui", evidence: [...]}` | the line that declares the package name other repositories import (any registry, including the company's private one, or a Go module path); omit it only for packages marked never to be published, such as `"private": true` |
 | `topics` | `{value: orders.created, evidence: [...]}` | the line that publishes to the topic; a topic this repository publishes also goes in `provides` with `kind: event`, which is what links a consumer to it |
+| `tables` | `{value: users, columns: [id, email], evidence: [...]}` | the line of the migration or schema that creates the table, never one that queries it; `value` may be qualified by its schema, as in `public.users` |
+
+A table is not a relation: it never goes in `provides`, it links nothing, and `trama link` and `trama graph` ignore it. It is here so a repository that needs a piece of data can find who owns it. `columns` is required — a table without its columns only says who owns "users", which whoever is asking already knew. List the columns the table has, not the ones the code reads.
 
 ### provides
 
@@ -90,6 +93,10 @@ run:
   test: { cmd: "go test ./..." }
 identity:
   ports: [{ value: 8080, evidence: ["cmd/api/main.go:11"] }]
+  tables:
+    - value: greetings
+      columns: [id, message, created_at]
+      evidence: ["migrations/001_greetings.sql:1-6"]
 provides:
   - kind: http
     id: "GET /hello"

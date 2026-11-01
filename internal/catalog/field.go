@@ -31,3 +31,28 @@ func ValidateField(path, typ string) error {
 	}
 	return nil
 }
+
+var ident = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// ValidateColumn checks a column name: a plain name, no dots.
+func ValidateColumn(name string) error {
+	if !ident.MatchString(name) {
+		return fmt.Errorf("column %q must be a plain name, e.g. created_at", name)
+	}
+	return nil
+}
+
+// ValidateTable checks a table name: a plain name, or one qualified by its
+// schema, as in public.users.
+func ValidateTable(name string) error {
+	parts := strings.Split(name, ".")
+	if len(parts) > 2 {
+		return fmt.Errorf("table %q must be a name, or schema.name", name)
+	}
+	for _, part := range parts {
+		if !ident.MatchString(part) {
+			return fmt.Errorf("table %q must be a name, or schema.name", name)
+		}
+	}
+	return nil
+}
