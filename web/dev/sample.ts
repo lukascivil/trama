@@ -143,3 +143,36 @@ export function sampleModel(now = Date.now()): Model {
     warnings: ["catalog/risk-profiler.yaml: mapped_at_commit is behind origin/main", "legal-entity-affiliation: consumes[3] evidence src/missing.ts:999 does not exist"],
   };
 }
+
+// bigModel is a workspace of n repositories for checking the page at scale.
+// Repositories sit in six tiers and each one consumes from one to three
+// repositories of the tiers below it, as services do; a few have unproven
+// relations, and every tenth has none at all.
+export function bigModel(n: number, now = Date.now()): Model {
+  const roles = ["api", "api", "web", "worker", "lib", "infra"];
+  const name = (i: number) => `service-${String(i).padStart(3, "0")}`;
+  const tier = Math.ceil(n / 6);
+  const edges: Edge[] = [];
+  for (let i = tier; i < n; i++) {
+    if (i % 10 === 0) continue;
+    const below = Math.floor(i / tier) * tier; // everything before this tier
+    const links = 1 + (i % 3);
+    for (let k = 1; k <= links; k++) {
+      const p = (i * 7 + k * 13) % below;
+      if (p % 10 === 0) continue;
+      const id = `GET /v1/${name(p)}/${k}`;
+      edges.push({ consumer: name(i), provider: name(p), kind: "http", id, status: "proven", evidence: [ev(name(i), "src/client.ts", k)] });
+    }
+    if (i % 17 === 0) edges.push({ consumer: name(i), kind: "http", id: "GET /legacy", status: "pending", candidates: [name(i - 1)] });
+  }
+  const repos: Repo[] = Array.from({ length: n }, (_, i) => ({
+    name: name(i),
+    stack: ["node"],
+    role: roles[i % roles.length],
+    cloned: true,
+    card: "current",
+    release: { version: `v1.${i % 20}.0`, date: new Date(now - (i % 40) * 86400000).toISOString(), commitsAfter: i % 5 },
+    affected: affectedBy(name(i), edges),
+  }));
+  return { workspace: `big-${n}`, repos, edges, warnings: [] };
+}

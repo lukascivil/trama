@@ -66,3 +66,24 @@ describe("bestDirection", () => {
     expect(tall).toBe("TB");
   });
 });
+
+describe("layout at scale", () => {
+  it("lays out 100 repositories without overlap, quickly", async () => {
+    const { bigModel } = await import("../dev/sample");
+    const big = bigModel(100);
+    const g = visibleGraph(big, buildBundles(big), noFilters);
+    const started = performance.now();
+    for (const dir of ["LR", "TB"] as const) {
+      const { at } = layout(g.nodes, g.edges, dir);
+      expect(at.size).toBe(g.nodes.length);
+      const boxes = g.nodes.map((id) => ({ ...(at.get(id) as { x: number; y: number }), ...sizeOf(id) }));
+      boxes.forEach((a, i) =>
+        boxes.slice(i + 1).forEach((b) => {
+          const apart = a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y;
+          if (!apart) throw new Error(`overlap in ${dir}`);
+        }),
+      );
+    }
+    expect(performance.now() - started).toBeLessThan(2000);
+  });
+});

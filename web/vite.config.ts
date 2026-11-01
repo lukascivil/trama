@@ -2,7 +2,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
 // With TRAMA_MOCK=1 the dev server answers /api/workspace with a made-up
-// workspace, so the page can be worked on without a real one. Otherwise the
+// workspace (TRAMA_MOCK_REPOS=100 for a big one), so the page can be worked on without a real one. Otherwise the
 // request goes to `trama graph --serve --no-open --port 7777`.
 function mock(): Plugin {
   return {
@@ -10,9 +10,10 @@ function mock(): Plugin {
     configureServer(server) {
       if (!process.env.TRAMA_MOCK) return;
       server.middlewares.use("/api/workspace", async (_req, res) => {
-        const { sampleModel } = await server.ssrLoadModule("/dev/sample.ts");
+        const { sampleModel, bigModel } = await server.ssrLoadModule("/dev/sample.ts");
+        const n = Number(process.env.TRAMA_MOCK_REPOS);
         res.setHeader("Content-Type", "application/json");
-        res.end(JSON.stringify(sampleModel()));
+        res.end(JSON.stringify(n > 0 ? bigModel(n) : sampleModel()));
       });
     },
   };
