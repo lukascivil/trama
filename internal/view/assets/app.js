@@ -50,6 +50,8 @@
       consumers: "Consumers",
       noMatch: (q) => `No repository or id matches “${q}”.`,
       legend: { selected: "selected", direct: "direct", indirect: "indirect", possible: "possible" },
+      bundle: (n, kind) => `${n} × ${kind}`,
+      together: (n, kind) => `${n} ${kind} ${plural(n, "relation", "relations")}`,
     },
     pt: {
       relations: "Relações",
@@ -94,6 +96,8 @@
       consumers: "Consumidores",
       noMatch: (q) => `Nenhum repositório ou id corresponde a “${q}”.`,
       legend: { selected: "selecionado", direct: "direto", indirect: "indireto", possible: "possível" },
+      bundle: (n, kind) => `${n} × ${kind}`,
+      together: (n, kind) => `${n} ${plural(n, "relação", "relações")} ${kind}`,
     },
   };
 
@@ -102,7 +106,11 @@
   const T = STRINGS[lang];
   document.documentElement.lang = lang === "pt" ? "pt-BR" : "en";
 
-  const UNKNOWN = "u:?";
+  // Every consumer with unproven relations gets its own "?" satellite, so
+  // one unproven relation somewhere does not drag every repository into a
+  // single knot in the middle of the graph.
+  const unknownID = (consumer) => `u:${consumer}`;
+  const isUnknown = (id) => id.startsWith("u:");
   const LABEL_LIMIT = 40;
   const trusted = (e) => e.status === "proven" || e.status === "declared";
   const $ = (id) => document.getElementById(id);
@@ -196,14 +204,30 @@
       if (!r.cloned) cls.push("notcloned");
       els.push({ group: "nodes", data: { id: `r:${r.name}`, label, w: width }, classes: cls.join(" ") });
     });
-    let unknown = false;
+    // One arrow per pair of repositories and kind: a repository that calls
+    // seven routes of another is one dependency, not seven.
+    const bundles = new Map();
+    const unknowns = new Set();
     model.edges.forEach((e, i) => {
-      let target = e.provider && repos.has(e.provider) ? `r:${e.provider}` : UNKNOWN;
-      if (target === UNKNOWN) unknown = true;
       if (!repos.has(e.consumer)) return;
-      els.push({ group: "edges", data: { id: `e:${i}`, source: `r:${e.consumer}`, target, label: e.id, idx: i }, classes: e.status });
+      const known = e.provider && repos.has(e.provider);
+      const target = known ? `r:${e.provider}` : unknownID(e.consumer);
+      if (!known) unknowns.add(e.consumer);
+      const group = edgeGroup(e);
+      const key = `${e.consumer}|${target}|${group}`;
+      const bundle = bundles.get(key);
+      if (bundle) {
+        bundle.idxs.push(i);
+        return;
+      }
+      bundles.set(key, { source: `r:${e.consumer}`, target, group, idxs: [i] });
     });
-    if (unknown) els.push({ group: "nodes", data: { id: UNKNOWN, label: "?", w: 32 }, classes: "unknown" });
+    unknowns.forEach((name) => els.push({ group: "nodes", data: { id: unknownID(name), label: "?", w: 32 }, classes: "unknown" }));
+    let n = 0;
+    bundles.forEach((b) => {
+      const label = b.idxs.length === 1 ? model.edges[b.idxs[0]].id : T.bundle(b.idxs.length, T.kind[b.group]);
+      els.push({ group: "edges", data: { id: `e:${n++}`, source: b.source, target: b.target, label, idxs: b.idxs, group: b.group }, classes: b.group });
+    });
     return els;
   }
 
@@ -211,12 +235,13 @@
     cy.elements().removeClass("faded selected direct indirect possible hl-direct hl-indirect hl-possible hl-edge");
   }
 
-  function modelEdge(ele) {
-    return model.edges[ele.data("idx")];
+  // modelEdges returns the relations an arrow stands for.
+  function modelEdges(ele) {
+    return (ele.data("idxs") || []).map((i) => model.edges[i]);
   }
 
   function edgesWhere(pred) {
-    return cy.edges().filter((ele) => pred(modelEdge(ele)));
+    return cy.edges().filter((ele) => modelEdges(ele).some(pred));
   }
 
   function selectRepo(name) {
@@ -242,20 +267,19 @@
       const node = cy.$id(`r:${h.repo}`);
       if (!node.hasClass("direct") && !node.hasClass("indirect")) node.removeClass("faded").addClass("possible");
       edgesWhere((e) => e.consumer === h.repo && e.id === h.id && (e.provider === name || (e.candidates || []).includes(name))).removeClass("faded").addClass("hl-possible");
+      cy.$id(unknownID(h.repo)).removeClass("faded");
     });
-    if (a.possible.some((h) => model.edges.some((e) => e.status === "pending" && e.consumer === h.repo))) cy.$id(UNKNOWN).removeClass("faded");
     renderRepo(repo);
     updateLabels();
   }
 
-  function selectEdge(idx) {
-    selected = idx;
+  function selectBundle(ele) {
+    selected = null;
     clearMarks();
     cy.elements().addClass("faded");
-    const ele = cy.$id(`e:${idx}`);
     ele.removeClass("faded").addClass("hl-edge");
     ele.connectedNodes().removeClass("faded");
-    renderEdge(model.edges[idx]);
+    renderEdges(modelEdges(ele));
     updateLabels();
   }
 
@@ -378,6 +402,27 @@
     }
   }
 
+  // renderEdges shows one relation in full, or the list behind a bundled
+  // arrow, each line opening its own proof.
+  function renderEdges(list) {
+    if (list.length < 2) {
+      renderEdge(list[0]);
+      return;
+    }
+    const panel = $("panel");
+    const first = list[0];
+    panel.replaceChildren(el("h2", `${first.consumer} → ${first.provider || "?"}`));
+    panel.append(el("p", T.together(list.length, T.kind[edgeGroup(first)]), "muted"));
+    const items = el("ul");
+    list.forEach((e) => {
+      const li = el("li", null, "rowlink");
+      li.append(el("code", e.id), " ", el("span", T.status[e.status], trusted(e) ? "badge" : "badge bad"));
+      li.onclick = () => renderEdge(e);
+      items.append(li);
+    });
+    panel.append(section(T.relations, items));
+  }
+
   function renderEdge(e) {
     const panel = $("panel");
     panel.replaceChildren(el("h2", e.id));
@@ -466,14 +511,13 @@
     );
     cy.batch(() => {
       cy.edges().forEach((ele) => {
-        const e = modelEdge(ele);
         const target = ele.data("target");
-        const ends = shown.has(ele.data("source")) && (target === UNKNOWN ? keep(UNKNOWN) : shown.has(target));
-        ele.toggleClass("hide", !(ends && kindShown.get(edgeGroup(e))));
+        const ends = shown.has(ele.data("source")) && (isUnknown(target) ? keep(target) : shown.has(target));
+        ele.toggleClass("hide", !(ends && kindShown.get(ele.data("group"))));
       });
       cy.nodes().forEach((n) => {
         const linked = n.connectedEdges().some((ele) => !ele.hasClass("hide"));
-        if (n.id() === UNKNOWN) {
+        if (isUnknown(n.id())) {
           n.toggleClass("hide", !linked);
           return;
         }
@@ -574,9 +618,9 @@
       maxZoom: 3,
     });
     cy.on("tap", "node", (evt) => {
-      if (evt.target.id() !== UNKNOWN) selectRepo(evt.target.id().slice(2));
+      if (!isUnknown(evt.target.id())) selectRepo(evt.target.id().slice(2));
     });
-    cy.on("tap", "edge", (evt) => selectEdge(evt.target.data("idx")));
+    cy.on("tap", "edge", (evt) => selectBundle(evt.target));
     cy.on("tap", (evt) => {
       if (evt.target === cy) clearSelection();
     });

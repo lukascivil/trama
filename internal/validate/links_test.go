@@ -213,3 +213,14 @@ func TestValidateConfigPointsToUnknownRepo(t *testing.T) {
 		t.Fatalf("findings = %v", fs)
 	}
 }
+
+// editWeb2 applies a further replacement to the web card already on disk,
+// so a test can change more than one field.
+func editWeb2(f *fx, old, new string) {
+	f.t.Helper()
+	data := f.readCard("trama-demo-web")
+	if !strings.Contains(data, old) {
+		f.t.Fatalf("card lacks %q", old)
+	}
+	f.card("trama-demo-web", strings.Replace(data, old, new, 1))
+}

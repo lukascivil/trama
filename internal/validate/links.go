@@ -11,7 +11,7 @@ import (
 	"github.com/lukascivil/trama/internal/workspace"
 )
 
-var vias = []string{"env", "package", "topic", "declared"}
+var vias = []string{"env", "route", "package", "topic", "declared"}
 
 // checkLinks applies the rules between cards and returns how many consumes
 // have a proven provider.
@@ -96,7 +96,7 @@ func checkConsume(ws *workspace.Workspace, l loaded, name string, c *catalog.Car
 		rep.errorf(where, "%s is not mapped", from)
 		return false
 	}
-	if !slices.ContainsFunc(pc.Provides, func(p catalog.Provide) bool { return p.Kind == cs.Kind && p.ID == cs.ID }) {
+	if !provides(pc, cs) {
 		rep.errorf(where, "%s does not provide %s", from, cs.ID)
 	}
 
@@ -117,6 +117,20 @@ func checkConsume(ws *workspace.Workspace, l loaded, name string, c *catalog.Car
 		}
 		if len(others) > 0 {
 			rep.errorf(where, "via env: the value matches %s and %s, which all provide %s: use from: unknown with candidates, or a declared link", from, strings.Join(others, ", "), cs.ID)
+		}
+	case "route":
+		if cs.Kind != "http" {
+			rep.errorf(where, "via route: needs kind http (an event uses via topic, a package via package)")
+			break
+		}
+		var others []string
+		for _, p := range providers(ws, l, name, cs) {
+			if p != from {
+				others = append(others, p)
+			}
+		}
+		if len(others) > 0 {
+			rep.errorf(where, "via route: %s and %s all serve %s, so the route does not say which: use from: unknown with candidates, or a declared link", from, strings.Join(others, ", "), cs.ID)
 		}
 	case "package":
 		if cs.Kind != "package" || pc.Identity.Package == nil || pc.Identity.Package.Value != cs.ID {
@@ -158,11 +172,21 @@ func providers(ws *workspace.Workspace, l loaded, name string, cs catalog.Consum
 		if r.Name == name || pc == nil {
 			continue
 		}
-		if slices.ContainsFunc(pc.Provides, func(p catalog.Provide) bool { return p.Kind == cs.Kind && p.ID == cs.ID }) {
+		if provides(pc, cs) {
 			out = append(out, r.Name)
 		}
 	}
 	return out
+}
+
+// provides reports whether card pc offers what cs consumes. Ids are
+// compared normalized, so the two sides may spell a route parameter
+// differently.
+func provides(pc *catalog.Card, cs catalog.Consume) bool {
+	want := catalog.NormalizeID(cs.Kind, cs.ID)
+	return slices.ContainsFunc(pc.Provides, func(p catalog.Provide) bool {
+		return p.Kind == cs.Kind && catalog.NormalizeID(p.Kind, p.ID) == want
+	})
 }
 
 func valueMatches(value string, id catalog.Identity) bool {

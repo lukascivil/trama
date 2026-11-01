@@ -26,7 +26,7 @@ One card per repository, at `catalog/<name>.yaml`. `trama validate` checks every
 | `ports` | `{value: 8080, evidence: [...]}` | the line that sets the listen address, or, for a framework default, the line of the repository's docs that states it |
 | `hosts` | `{value: api.acme.com, evidence: [workspace.yaml]}` | only hosts listed for this repository under `hosts` in `workspace.yaml` |
 | `package` | `{value: "@acme/ui", evidence: [...]}` | the line that declares the package name other repositories import (any registry, including the company's private one, or a Go module path); omit it only for packages marked never to be published, such as `"private": true` |
-| `topics` | `{value: orders.created, evidence: [...]}` | the line that publishes to the topic |
+| `topics` | `{value: orders.created, evidence: [...]}` | the line that publishes to the topic; a topic this repository publishes also goes in `provides` with `kind: event`, which is what links a consumer to it |
 
 ### provides
 
@@ -41,9 +41,10 @@ One card per repository, at `catalog/<name>.yaml`. `trama validate` checks every
 
 `{kind, id, from, via, candidates, fields_used, evidence}`
 
-- `kind` and `id`: same rules as `provides`, and equal to the provider's entry.
+- `kind` and `id`: same rules as `provides`. For `http` the two sides are matched after normalizing: the method is case-insensitive, a trailing slash is ignored and every path parameter counts as the same, so `GET /orders/{id}` and `GET /orders/{order_id}` are the same route. Write the id as this repository's own code spells it.
 - `from`: the providing repository, or `unknown`.
 - `via`: the proof that `from` is right. Required when `from` is a repository, empty when it is `unknown`:
+  - `route`: `kind: http` and exactly one repository of the workspace provides that route. `trama link` writes this one; do not write it by hand.
   - `env`: a `config` entry of this card has `points_to: <from>` and a `value` whose host matches one of the provider's `identity.hosts`, or whose port matches one of its `identity.ports` with host `localhost`, `127.0.0.1` or `0.0.0.0`.
   - `package`: `kind: package` and `id` equal to the provider's `identity.package`.
   - `topic`: `kind: event` and `id` listed in the provider's `identity.topics`.

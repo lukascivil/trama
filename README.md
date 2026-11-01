@@ -45,9 +45,9 @@ repos/                the clones (ignored by git)
 In Claude Code, from the workspace:
 
 - `/trama:add-repo <url>` adds a repository, clones it and maps it.
-- `/trama:map <repo>` (or `--all`) reads a repository and writes its catalog card, `catalog/<repo>.yaml`: stack, how to run it, what it provides and consumes, and the `file:line` evidence for each fact. A consumer is linked to a provider only with proof (a config value matching the provider's host or port, a package, a topic, or a link declared in `workspace.yaml`); otherwise the relation stays `from: unknown` with its candidates.
+- `/trama:map <repo>` (or `--all`) reads a repository and writes its catalog card, `catalog/<repo>.yaml`: stack, how to run it, what it provides and consumes, and the `file:line` evidence for each fact. A consumer is linked to a provider by `trama link`, which is mechanical: the relation goes to the one repository of the workspace that serves that route, publishes that topic or owns that package, and routes match however each side spells a path parameter. When two repositories serve it, the relation stays `from: unknown` with both as candidates, for you to settle with a config value matching one provider's host or port, or a link declared in `workspace.yaml`.
 
-Then `trama graph` writes `docs/graph.md` and the repository table in `AGENTS.md`. `/trama:map` never commits: review and commit `catalog/`, `docs/graph.md` and `AGENTS.md` yourself.
+Then `trama link` resolves the relations and `trama graph` writes `docs/graph.md` and the repository table in `AGENTS.md`. `/trama:map` never commits: review and commit `catalog/`, `docs/graph.md` and `AGENTS.md` yourself.
 
 `trama graph --serve` opens an interactive graph of the workspace in your browser: every repository with its latest release (the highest semver tag) and every relation with its proof. Click a repository to see who may be affected if you release something there: direct consumers, with the `file:line` that proves it; indirect ones, through other repositories; and possible ones, from relations without proof. It also has search, filters and a focus on one repository's neighbors. Everything runs on your machine: the server listens only on `127.0.0.1` and the page loads nothing from the internet.
 
@@ -69,6 +69,7 @@ Run them from anywhere inside the workspace (in your own shell, through `mise ex
 | `trama status [--quiet]` | Shows branch, local changes, distance from origin, catalog card state and unproven relations for every repository. Offline. `--quiet` prints only problems. |
 | `trama validate` | Checks every catalog card: required fields, evidence that exists in the clone, and proof for every relation. |
 | `trama stamp <repo>` | Records in the card the commit it describes (`origin/<branch>`). Refuses unless the clone is clean and up to date. |
+| `trama link [--dry-run]` | Links every `from: unknown` to the one repository of the workspace that provides it and writes the proof in `via`. Leaves the candidates when more than one does. |
 | `trama graph` | Writes `docs/graph.md` (Mermaid) and the table between the markers in `AGENTS.md`. Refuses an invalid catalog. |
 | `trama graph --serve [--port <n>] [--no-open]` | Serves an interactive graph of the workspace on `127.0.0.1` (port 7300, or a free one) and opens the browser, until Ctrl+C. It only reads; validation errors show on the page. |
 | `trama setup [repo...]` | Runs `run.setup` from each card (e.g. `npm install`) and remembers it, so `dev`, `test` and `up` only repeat it after new commits, a new command or new tool versions. |

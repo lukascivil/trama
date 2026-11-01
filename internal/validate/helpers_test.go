@@ -102,6 +102,16 @@ func (f *fx) write(rel, content string) {
 	}
 }
 
+// readCard returns the card of name as it is on disk.
+func (f *fx) readCard(name string) string {
+	f.t.Helper()
+	data, err := os.ReadFile(catalog.Path(f.root, name))
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	return string(data)
+}
+
 func (f *fx) card(name, content string) {
 	f.t.Helper()
 	rel, _ := filepath.Rel(f.root, catalog.Path(f.root, name))
