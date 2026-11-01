@@ -214,6 +214,9 @@ main {
 
 #panel li:last-child { border-bottom: 0; }
 
+.rowlink { cursor: pointer; }
+.rowlink:hover code { color: var(--sel); }
+
 .chips {
   display: flex;
   flex-wrap: wrap;

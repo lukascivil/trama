@@ -18,6 +18,7 @@ A card describes the repository's main branch, and every fact in it is proven by
 In `repos/<name>`:
 - Read its `AGENTS.md`, `CLAUDE.md` and `README` first. They say how the team runs and tests it.
 - Read the manifests and version files that exist: `go.mod`, `package.json`, `.nvmrc`, `.tool-versions`, `.python-version`, `pyproject.toml`, `pom.xml`, `build.gradle`, `Dockerfile`, `compose.yaml`, `.env.example`.
+- Find the route table and the OpenAPI spec, if there is one: a committed `openapi.yaml` / `openapi.json` / `docs/*-api.yaml`, or the module that builds one at run time. Together with the router they are how you list every route the repository serves.
 - If the card already exists, run `git -C repos/<name> diff --stat <mapped_at_commit> HEAD` to see what changed. Still re-check every evidence line already in the card.
 
 ## 3. Write the card
@@ -28,7 +29,9 @@ Write `catalog/<name>.yaml` following `${CLAUDE_PLUGIN_ROOT}/skills/map/card-ref
 - Leave `mapped_at_commit` and `mapped_at` out: `trama stamp` writes them in step 5.
 
 Look for:
-- **provides**: HTTP routes it serves (not CORS preflight handling), events it publishes, and packages other repositories import by name: published to any registry, public or the company's private one, or a Go module with packages others can import (not only `main` and `internal/`). Skip only packages marked never to be published, such as `"private": true` in `package.json`.
+- **provides**: list **every** route the repository serves (not CORS preflight handling), every topic it publishes, and every package other repositories import by name: published to any registry, public or the company's private one, or a Go module with packages others can import (not only `main` and `internal/`). Skip only packages marked never to be published, such as `"private": true` in `package.json`.
+
+  This list is what links other repositories to this one, so a route left out is a relation that stays unproven in someone else's card. Read the routes from the router (a `router.ex` scope tree, `huma.Register` calls, a framework's route table) or from the repository's OpenAPI spec, and cite the line you read. A spec's `servers:` usually points at a shared gateway, so it says nothing about who serves the route: take the paths from it, not the identity. A topic this repository publishes goes here with `kind: event` as well as in `identity.topics`.
 - **identity**: ports it listens on (cite the line that sets the address; when the code relies on a framework default, cite the line of the repository's own docs that states the port); hosts listed for it under `hosts` in `workspace.yaml` (evidence `workspace.yaml`); the package name it publishes; topics it publishes.
 - **consumes**: HTTP calls to services the company owns (a repository of this workspace, or one that could be added), events it subscribes to, internal packages it imports. Skip third-party APIs such as payment, email or cloud providers. Add `fields_used` when the code reads specific response fields.
 - **config**: environment variables that hold another service's address, with their example value. Include them even when nothing in this repository calls that service (a CORS origin, for example): they still show which repositories know about each other. Set `points_to` only to a repository of this workspace; when that service is not a repository here yet, leave `points_to` out.
@@ -36,27 +39,28 @@ Look for:
 
 ## 4. Link consumers to providers
 
-Read the other cards in `catalog/`. A consume gets `from: <repo>` only with its own proof, written in `via`:
-- `env`: a `config` entry of this card points to that repository, and its value matches a host or port in that repository's `identity`.
-- `package`: this repository imports the package named in that repository's `identity.package`.
-- `topic`: this repository subscribes to a topic listed in that repository's `identity.topics`.
-- `declared`: `workspace.yaml` has a `links` entry with this consumer, that provider and this `id`.
+Write every consume with `from: unknown` and no `via`, then run `trama link`.
 
-A matching `id` alone is not proof. Without proof, write `from: unknown` and list in `candidates` the repositories whose cards provide the same `id`.
+Linking is mechanical, so the code does it: `trama link` gives a consume the one repository of the workspace whose card provides the same thing, and records how it knows — `via: route` for a route, `via: topic` for a topic, `via: package` for a package. Routes are matched ignoring the method's case, a trailing slash and the name of each path parameter, so the consumer's `GET /orders/{id}` and the router's `GET /orders/{order_id}` are one route. When two repositories provide the same thing, the link stays `unknown` and both go in `candidates`, because then the route does not say which one answers.
 
-When mapping several repositories, write all cards first, then revisit every `from: unknown`: a provider mapped later may now prove the link.
+Never write `from` by hand because the names look alike, and never write `via: route`, `via: topic` or `via: package` yourself. What `trama link` leaves behind is yours to look at:
 
-Also look at the cards you did not write now: for every `from: unknown` whose `id` the repository you just mapped provides, add `points_to` to the matching `config` entry if it was left out, check the same proof and, when it holds, set `from` and `via` there. `trama validate` warns when a mapped repository provides a pending `id`. Linking edits like these do not need a new stamp.
+- **Nothing provides it.** Either the provider is not a repository of this workspace — a third party, or a service nobody has added yet — or the provider's card is missing that route. Open the provider's card first: an incomplete `provides` is the usual cause.
+- **Two candidates.** Prove it another way, or leave it. `via: env` when a `config` entry of this card points to one of them with a value matching its host or port; `via: declared` when you add a `links` entry to `workspace.yaml`. Both are proofs you write yourself, with evidence.
+
+When mapping several repositories, write all the cards first and run `trama link` once at the end: a provider mapped later resolves the consumes already written. Linking edits do not need a new stamp.
 
 ## 5. Stamp, validate, graph
 
 1. Run `trama stamp <name>` for each card you wrote. It records the commit the card describes. Stamp again only when you change a card's own facts after stamping.
-2. Run `trama validate` and fix every error from the code. Never silence an error with evidence you did not read: remove the entry, or use `from: unknown`.
-3. When there are no errors, run `trama graph`.
+2. Run `trama link` if you have not already, and read its output.
+3. Run `trama validate` and fix every error from the code. Never silence an error with evidence you did not read: remove the entry, or use `from: unknown`.
+4. When there are no errors, run `trama graph`.
 
 ## 6. Report
 
 Tell the user:
 - for each repository, the relations added, removed or changed (`git diff -- catalog/` shows them; a card that is new, or untracked in a workspace without commits, has every relation added);
-- every `from: unknown` left, with its candidates and what would prove it (a config value, a declared host, a `links` entry);
+- what `trama link` resolved, and how many;
+- every `from: unknown` left, split into the ones nobody provides and the ones with candidates, and what would settle each (a route missing from a provider's card, a config value, a `links` entry);
 - that nothing was committed: they review and commit `catalog/`, `docs/graph.md` and `AGENTS.md`.

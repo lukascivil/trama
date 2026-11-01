@@ -45,9 +45,9 @@ repos/                os clones (ignorados pelo git)
 No Claude Code, a partir do workspace:
 
 - `/trama:add-repo <url>` adiciona um repositório, clona e mapeia.
-- `/trama:map <repo>` (ou `--all`) lê um repositório e escreve a ficha dele, `catalog/<repo>.yaml`: stack, como rodar, o que expõe e consome, e a evidência `arquivo:linha` de cada fato. Um consumidor só é ligado a um fornecedor com prova (um valor de configuração que bate com o host ou a porta do fornecedor, um pacote, um tópico ou um vínculo declarado no `workspace.yaml`); sem prova, a relação fica `from: unknown` com os candidatos.
+- `/trama:map <repo>` (ou `--all`) lê um repositório e escreve a ficha dele, `catalog/<repo>.yaml`: stack, como rodar, o que expõe e consome, e a evidência `arquivo:linha` de cada fato. Quem liga um consumidor a um fornecedor é o `trama link`, e a regra é mecânica: a relação vai para o único repositório do workspace que serve aquela rota, publica aquele tópico ou é dono daquele pacote, e rotas casam mesmo quando cada lado escreve o parâmetro de caminho de um jeito. Quando dois repositórios servem a mesma coisa, a relação fica `from: unknown` com os dois como candidatos, para você resolver com um valor de configuração que bate com o host ou a porta de um deles, ou com um vínculo declarado no `workspace.yaml`.
 
-Depois, `trama graph` escreve o `docs/graph.md` e a tabela de repositórios no `AGENTS.md`. O `/trama:map` nunca faz commit: revise e commite `catalog/`, `docs/graph.md` e `AGENTS.md`.
+Depois, o `trama link` resolve as relações e o `trama graph` escreve o `docs/graph.md` e a tabela de repositórios no `AGENTS.md`. O `/trama:map` nunca faz commit: revise e commite `catalog/`, `docs/graph.md` e `AGENTS.md`.
 
 `trama graph --serve` abre no navegador um grafo interativo do workspace: cada repositório com a última release (a maior tag semver) e cada relação com a prova. Clique num repositório para ver quem pode ser afetado se você publicar algo ali: os consumidores diretos, com o `arquivo:linha` que prova; os indiretos, através de outros repositórios; e os possíveis, de relações sem prova. Também tem busca, filtros e foco nos vizinhos de um repositório. Tudo roda na sua máquina: o servidor escuta só em `127.0.0.1` e a página não carrega nada da internet.
 
@@ -69,6 +69,7 @@ Rode de qualquer lugar dentro do workspace (no seu terminal, via `mise exec -- t
 | `trama status [--quiet]` | Mostra branch, alterações locais, distância do remoto, estado da ficha e relações sem prova de cada repositório. Sem rede. `--quiet` mostra só os problemas. |
 | `trama validate` | Confere todas as fichas: campos obrigatórios, evidência que existe no clone e prova de cada relação. |
 | `trama stamp <repo>` | Grava na ficha o commit que ela descreve (`origin/<branch>`). Recusa se o clone não estiver limpo e atualizado. |
+| `trama link [--dry-run]` | Liga cada `from: unknown` ao único repositório do workspace que fornece aquilo e grava a prova no `via`. Quando mais de um fornece, deixa os candidatos. |
 | `trama graph` | Escreve o `docs/graph.md` (Mermaid) e a tabela entre os marcadores do `AGENTS.md`. Recusa catálogo inválido. |
 | `trama graph --serve [--port <n>] [--no-open]` | Serve um grafo interativo do workspace em `127.0.0.1` (porta 7300, ou outra livre) e abre o navegador, até o Ctrl+C. Só lê; erros de validação aparecem na página. |
 | `trama setup [repo...]` | Roda o `run.setup` de cada ficha (ex.: `npm install`) e lembra disso, para que `dev`, `test` e `up` só repitam depois de commits novos, de um comando novo ou de versões novas das ferramentas. |

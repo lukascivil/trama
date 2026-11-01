@@ -48,6 +48,41 @@ func Build(ws *workspace.Workspace, cards map[string]*catalog.Card) ([]Relation,
 	return rels, pending
 }
 
+// order lists the distinct keys of items, keeping the order they first
+// appear in, so the document is the same for the same catalog.
+func order[T any](items []T, key func(T) string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, it := range items {
+		k := key(it)
+		if !seen[k] {
+			seen[k] = true
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+func count[T any](items []T, pred func(T) bool) int {
+	n := 0
+	for _, it := range items {
+		if pred(it) {
+			n++
+		}
+	}
+	return n
+}
+
+func first[T any](items []T, pred func(T) bool) T {
+	for _, it := range items {
+		if pred(it) {
+			return it
+		}
+	}
+	var zero T
+	return zero
+}
+
 // Doc renders docs/graph.md.
 func Doc(ws *workspace.Workspace, rels []Relation, pending []Pending) string {
 	node := map[string]string{}
@@ -58,14 +93,29 @@ func Doc(ws *workspace.Workspace, rels []Relation, pending []Pending) string {
 		node[r.Name] = fmt.Sprintf("n%d", i)
 		fmt.Fprintf(&b, "  n%d[\"%s\"]\n", i, mermaidText(r.Name))
 	}
-	if len(pending) > 0 {
-		b.WriteString("  unknown((\"?\"))\n")
+	// One arrow per pair, and a "?" of its own for each consumer with
+	// relations nobody has proven: a repository that calls seven routes of
+	// another is one dependency, and one unproven call should not pull
+	// every repository into the same knot.
+	for _, name := range order(pending, func(p Pending) string { return p.Consumer }) {
+		fmt.Fprintf(&b, "  u%s((\"?\"))\n", strings.TrimPrefix(node[name], "n"))
 	}
-	for _, rel := range rels {
-		fmt.Fprintf(&b, "  %s -->|\"%s\"| %s\n", node[rel.Consumer], mermaidText(rel.ID), node[rel.Provider])
+	for _, key := range order(rels, func(r Relation) string { return r.Consumer + "\x00" + r.Provider }) {
+		consumer, provider, _ := strings.Cut(key, "\x00")
+		n := count(rels, func(r Relation) bool { return r.Consumer == consumer && r.Provider == provider })
+		label := fmt.Sprintf("%d relations", n)
+		if n == 1 {
+			label = mermaidText(first(rels, func(r Relation) bool { return r.Consumer == consumer && r.Provider == provider }).ID)
+		}
+		fmt.Fprintf(&b, "  %s -->|\"%s\"| %s\n", node[consumer], label, node[provider])
 	}
-	for _, p := range pending {
-		fmt.Fprintf(&b, "  %s -.->|\"%s\"| unknown\n", node[p.Consumer], mermaidText(p.ID))
+	for _, consumer := range order(pending, func(p Pending) string { return p.Consumer }) {
+		n := count(pending, func(p Pending) bool { return p.Consumer == consumer })
+		label := fmt.Sprintf("%d not proven", n)
+		if n == 1 {
+			label = mermaidText(first(pending, func(p Pending) bool { return p.Consumer == consumer }).ID)
+		}
+		fmt.Fprintf(&b, "  %s -.->|\"%s\"| u%s\n", node[consumer], label, strings.TrimPrefix(node[consumer], "n"))
 	}
 	b.WriteString("```\n\n## Relations\n\n")
 	if len(rels) == 0 {

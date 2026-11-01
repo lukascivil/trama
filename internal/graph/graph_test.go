@@ -78,11 +78,56 @@ func TestGraphShowsPending(t *testing.T) {
 	rels, pending := graph.Build(ws, cards)
 	doc := graph.Doc(ws, rels, pending)
 	for _, want := range []string{
-		`unknown(("?"))`,
-		`n1 -.->|"GET /health"| unknown`,
+		`u1(("?"))`,
+		`n1 -.->|"GET /health"| u1`,
 		"## Pending",
 		"| trama-demo-web | http | GET /health | trama-demo-api, billing |",
 		`n2["billing"]`,
+	} {
+		if !strings.Contains(doc, want) {
+			t.Errorf("doc lacks %q:\n%s", want, doc)
+		}
+	}
+}
+
+func TestDocDrawsOneArrowPerPair(t *testing.T) {
+	ws := demoWorkspace(t)
+	cards := demoCards()
+	api := cards["trama-demo-api"]
+	web := cards["trama-demo-web"]
+	for _, id := range []string{"GET /orders", "POST /orders"} {
+		api.Provides = append(api.Provides, catalog.Provide{Kind: "http", ID: id})
+		web.Consumes = append(web.Consumes, catalog.Consume{Kind: "http", ID: id, From: "trama-demo-api", Via: "route"})
+	}
+	rels, pending := graph.Build(ws, cards)
+	doc := graph.Doc(ws, rels, pending)
+	if !strings.Contains(doc, `n1 -->|"3 relations"| n0`) {
+		t.Errorf("the three routes were not drawn as one arrow:\n%s", doc)
+	}
+	if strings.Contains(doc, `|"GET /orders"| n0`) {
+		t.Errorf("a bundled route still has its own arrow:\n%s", doc)
+	}
+	for _, want := range []string{"| trama-demo-web | trama-demo-api | http | GET /orders | route |", "| trama-demo-web | trama-demo-api | http | GET /hello | env |"} {
+		if !strings.Contains(doc, want) {
+			t.Errorf("the table lost %q:\n%s", want, doc)
+		}
+	}
+}
+
+func TestDocGivesEachConsumerItsOwnUnknown(t *testing.T) {
+	ws := demoWorkspace(t, "billing")
+	cards := demoCards()
+	cards["trama-demo-web"].Consumes = append(cards["trama-demo-web"].Consumes,
+		catalog.Consume{Kind: "http", ID: "GET /health", From: catalog.Unknown},
+		catalog.Consume{Kind: "http", ID: "GET /ready", From: catalog.Unknown})
+	cards["trama-demo-api"].Consumes = []catalog.Consume{{Kind: "http", ID: "GET /elsewhere", From: catalog.Unknown}}
+	rels, pending := graph.Build(ws, cards)
+	doc := graph.Doc(ws, rels, pending)
+	for _, want := range []string{
+		`u0(("?"))`,
+		`u1(("?"))`,
+		`n0 -.->|"GET /elsewhere"| u0`,
+		`n1 -.->|"2 not proven"| u1`,
 	} {
 		if !strings.Contains(doc, want) {
 			t.Errorf("doc lacks %q:\n%s", want, doc)
