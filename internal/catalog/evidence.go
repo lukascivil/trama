@@ -41,6 +41,16 @@ func ParseEvidence(s string) (Evidence, error) {
 	return Evidence{Path: path, Start: start, End: end}, nil
 }
 
+// ValidateContract checks the path of a provide's contract: relative to the
+// repository root and without .., the rule of an evidence path, so a
+// contract never points outside the repository.
+func ValidateContract(path string) error {
+	if p := strings.TrimSpace(path); p == "" || strings.HasPrefix(p, "/") || hasDotDot(p) {
+		return fmt.Errorf("contract %q: path must be relative to the repository root, without ..", path)
+	}
+	return nil
+}
+
 func hasDotDot(path string) bool {
 	for _, seg := range strings.Split(path, "/") {
 		if seg == ".." {

@@ -24,3 +24,17 @@ func TestParseEvidence(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateContract(t *testing.T) {
+	for _, ok := range []string{"openapi.yaml", "docs/api/v1.json", "./openapi.yaml", "proto/orders.proto"} {
+		if err := catalog.ValidateContract(ok); err != nil {
+			t.Errorf("ValidateContract(%q) = %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"/etc/passwd", "../x.yaml", "docs/../../x.yaml", " "} {
+		err := catalog.ValidateContract(bad)
+		if err == nil || err.Error() != `contract "`+bad+`": path must be relative to the repository root, without ..` {
+			t.Errorf("ValidateContract(%q) = %v", bad, err)
+		}
+	}
+}
