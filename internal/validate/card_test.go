@@ -184,3 +184,77 @@ func TestFindingString(t *testing.T) {
 		t.Fatalf("String() = %q", got)
 	}
 }
+
+func TestCardResponseFieldTypeUnknown(t *testing.T) {
+	f := demo(t)
+	f.card("trama-demo-api", strings.Replace(demoAPI, "response: { message: string }", "response: { message: str }", 1))
+	fs := f.findings()
+	if !hasError(fs, "provides[0] GET /hello", `"str"`) || !hasError(fs, "provides[0] GET /hello", "[]object") {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardResponseFieldPathInvalid(t *testing.T) {
+	f := demo(t)
+	f.card("trama-demo-api", strings.Replace(demoAPI, "response: { message: string }", `response: { "tags[]": string }`, 1))
+	if fs := f.findings(); !hasError(fs, "provides[0] GET /hello", "tags[]") {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardResponseFieldEmptyType(t *testing.T) {
+	f := demo(t)
+	f.card("trama-demo-api", strings.Replace(demoAPI, "response: { message: string }", "response: { message: }", 1))
+	if fs := f.findings(); !hasError(fs, "provides[0] GET /hello", "message") {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardRequestOnlyForHTTP(t *testing.T) {
+	f := demo(t)
+	f.card("trama-demo-api", strings.NewReplacer(
+		"kind: http", "kind: event",
+		`id: "GET /hello"`, "id: orders.created",
+		"response:", "request:",
+	).Replace(demoAPI))
+	if fs := f.findings(); !hasError(fs, "provides[0] orders.created", "request is only for kind: http") {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardResponseNotForPackage(t *testing.T) {
+	f := demo(t)
+	f.card("trama-demo-api", strings.NewReplacer(
+		"kind: http", "kind: package",
+		`id: "GET /hello"`, `id: "@acme/ui"`,
+	).Replace(demoAPI))
+	if fs := f.findings(); !hasError(fs, "provides[0] @acme/ui", "response is only for kind: http or event") {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardShapeRenamed(t *testing.T) {
+	f := demo(t)
+	f.card("trama-demo-api", strings.Replace(demoAPI, "response:", "shape:", 1))
+	if fs := f.findings(); !hasError(fs, "provides[0] GET /hello", "shape was renamed to response") {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardFieldsUsedPathInvalid(t *testing.T) {
+	f := demo(t)
+	f.card("trama-demo-web", strings.Replace(demoWeb, "fields_used: [message]", `fields_used: ["a..b"]`, 1))
+	if fs := f.findings(); !hasError(fs, "consumes[0] GET /hello", "a..b") {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardBodiesOK(t *testing.T) {
+	f := demo(t)
+	f.card("trama-demo-api", strings.Replace(demoAPI, "response: { message: string }",
+		`request: { user_id: string }
+    response: { id: string, "customer.email": string }`, 1))
+	if fs := f.findings(); len(fs) != 0 {
+		t.Fatalf("findings = %v", fs)
+	}
+}

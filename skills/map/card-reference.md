@@ -30,12 +30,19 @@ One card per repository, at `catalog/<name>.yaml`. `trama validate` checks every
 
 ### provides
 
-`{kind, id, contract, shape, evidence}`
+`{kind, id, contract, request, response, evidence}`
 
 - `kind`: `http`, `event` or `package`.
 - `id`: for `http`, `METHOD /path` with METHOD one of `GET POST PUT PATCH DELETE HEAD OPTIONS`, path parameters as `{name}` (never `:name`) and no query string, e.g. `GET /orders/{id}`. For `event`, the topic. For `package`, the package name.
-- `contract`: optional path to an OpenAPI, GraphQL or proto file.
-- `shape`: optional response fields, e.g. `{message: string}`.
+- `contract`: optional path to an OpenAPI, GraphQL or proto file. It stays a pointer: the card carries the fields so they can be searched, the file carries the full detail.
+- `request`: optional body fields the endpoint accepts. Only for `kind: http`.
+- `response`: optional body fields it returns, e.g. `{message: string}`; for `kind: event`, the payload it publishes. Not for `kind: package`.
+
+`request` and `response` are a flat map of field path to type, never nested YAML:
+
+- A path is dotted names, the way the body nests them: `id`, `customer.email`, `items[].sku`. `[]` marks a segment that is a list of objects you then descend into, so it never ends a path — a list of plain values is the type, `[]string`.
+- A type is one of `string`, `number`, `boolean`, `object`, `[]string`, `[]number`, `[]boolean`, `[]object`, and nothing else. Whether a field is required, its format and its allowed values belong in the `contract` file, not here.
+- List the fields the endpoint really returns, not the columns the database has. Leave the map out when you could not read them, instead of guessing.
 
 ### consumes
 
@@ -50,7 +57,7 @@ One card per repository, at `catalog/<name>.yaml`. `trama validate` checks every
   - `topic`: `kind: event` and `id` listed in the provider's `identity.topics`.
   - `declared`: `workspace.yaml` has `links: [{consumer: <this>, provider: <from>, id: <id>}]`.
 - `candidates`: with `from: unknown`, the repositories whose cards provide the same `id`. Leave the key out when there are none.
-- `fields_used`: optional response fields the code reads.
+- `fields_used`: optional response fields the code reads, in the same dotted-path form as the provider's `response`.
 
 ### config
 
@@ -86,7 +93,7 @@ identity:
 provides:
   - kind: http
     id: "GET /hello"
-    shape: { message: string }
+    response: { message: string }
     evidence: ["internal/api/api.go:42"]
 ```
 

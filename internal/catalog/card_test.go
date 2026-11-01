@@ -57,7 +57,7 @@ provides:
   - kind: http
     id: "GET /hello"
     contract: null
-    shape: { message: string }
+    response: { message: string }
     evidence: ["internal/http/hello.go:14"]
 `
 
@@ -101,7 +101,7 @@ func TestLoadIdentity(t *testing.T) {
 	if len(c.Identity.Ports) != 1 || c.Identity.Ports[0].Value != 8080 || c.Identity.Ports[0].Evidence[0] != "cmd/api/main.go:10" {
 		t.Fatalf("identity = %+v", c.Identity)
 	}
-	if c.Identity.Package != nil || c.Provides[0].Contract != "" || c.Provides[0].Shape["message"] != "string" {
+	if c.Identity.Package != nil || c.Provides[0].Contract != "" || c.Provides[0].Response["message"] != "string" {
 		t.Fatalf("card = %+v", c)
 	}
 }

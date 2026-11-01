@@ -86,11 +86,13 @@ type Identity struct {
 
 // Provide is something the repository offers to others.
 type Provide struct {
-	Kind     string         `yaml:"kind"`
-	ID       string         `yaml:"id"`
-	Contract string         `yaml:"contract,omitempty"`
-	Shape    map[string]any `yaml:"shape,omitempty"`
-	Evidence []string       `yaml:"evidence"`
+	Kind     string            `yaml:"kind"`
+	ID       string            `yaml:"id"`
+	Contract string            `yaml:"contract,omitempty"`
+	Request  map[string]string `yaml:"request,omitempty"`
+	Response map[string]string `yaml:"response,omitempty"`
+	Shape    map[string]any    `yaml:"shape,omitempty"` // renamed to Response; kept only so validate can say so
+	Evidence []string          `yaml:"evidence"`
 }
 
 // Consume is something the repository uses from another one.
