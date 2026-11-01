@@ -325,7 +325,7 @@
     const li = el("li");
     const head = el("div");
     head.append(el("strong", d.repo), " ", el("span", label, "muted"), " ");
-    head.append(el("code", d.layer === "table" ? `${d.table}.${d.path}` : d.path));
+    head.append(el("code", d.layer === "table" && d.table ? `${d.table}.${d.path}` : d.path));
     if (d.type) head.append(el("span", ` · ${d.type}`, "muted"));
     if (d.id) head.append(" · ", el("code", d.id));
     li.append(head);
@@ -333,14 +333,20 @@
     return li;
   }
 
-  // renderData lists the hits in the order the model gives them: the
+  // dataBlock lists the hits in the order the model gives them: the
   // endpoints that already serve the data, then the tables that hold it.
-  function renderData(term, hits) {
-    const panel = $("panel");
-    panel.replaceChildren(el("h2", term), el("p", T.dataHits(hits.length), "muted"));
+  function dataBlock(hits) {
     const list = el("ul");
     hits.forEach((d) => list.append(dataItem(d)));
-    panel.append(section(T.data, list));
+    const body = document.createDocumentFragment();
+    body.append(el("p", T.dataHits(hits.length), "muted"), list);
+    return section(T.data, body);
+  }
+
+  function renderData(term, hits) {
+    const panel = $("panel");
+    panel.replaceChildren(el("h2", term));
+    panel.append(dataBlock(hits));
   }
 
   function renderHint() {
@@ -539,13 +545,16 @@
       updateLabels();
       return;
     }
+    const hits = (model.data || []).filter((d) => d.match.toLowerCase().includes(lower));
     const match = model.repos.find((r) => r.name.toLowerCase().includes(lower));
     if (match) {
       selectRepo(match.name);
       cy.center(cy.$id(`r:${match.name}`));
+      // The repo wins the panel, but the data it does not mention is still
+      // an answer to what was typed: show it instead of dropping it.
+      if (hits.length) $("panel").append(dataBlock(hits));
       return;
     }
-    const hits = (model.data || []).filter((d) => d.match.toLowerCase().includes(lower));
     if (hits.length) {
       selected = null;
       clearMarks();
