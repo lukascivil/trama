@@ -49,7 +49,7 @@ repos/                the clones (ignored by git)
 
 In Claude Code, from the workspace:
 
-- `/trama:add-repo <url>` adds a repository, clones it and maps it.
+- `/trama:add-repo <url>` adds a repository, clones it and maps it. With no URL (or with an organization name) it opens a page on your machine that lists the organization's repositories on GitHub, with a filter and checkboxes, and then adds, clones and maps the ones you tick.
 - `/trama:map <repo>` (or `--all`) reads a repository and writes its catalog card, `catalog/<repo>.yaml`: stack, how to run it, what it provides and consumes, and the `file:line` evidence for each fact. A consumer is linked to a provider by `trama link`, which is mechanical: the relation goes to the one repository of the workspace that serves that route, publishes that topic or owns that package, and routes match however each side spells a path parameter. When two repositories serve it, the relation stays `from: unknown` with both as candidates, for you to settle with a config value matching one provider's host or port, or a link declared in `workspace.yaml`.
 
 Then `trama link` resolves the relations and `trama graph` writes `docs/graph.md` and the repository table in `AGENTS.md`. `/trama:map` never commits: review and commit `catalog/`, `docs/graph.md` and `AGENTS.md` yourself.
@@ -70,6 +70,7 @@ Run them from anywhere inside the workspace (in your own shell, through `mise ex
 | Command | What it does |
 |---|---|
 | `trama add <url>` | Adds a repository to `workspace.yaml`. Detects its default branch. Does not clone. |
+| `trama add --pick [<org>]` | Opens a page on `127.0.0.1` that lists the repositories of a GitHub organization, with a filter and checkboxes, and adds the ones you tick to `workspace.yaml`. Prints the added names, one per line. The token comes from `gh`, or `GH_TOKEN` / `GITHUB_TOKEN`, and never leaves the process. Does not clone. |
 | `trama sync [repo...]` | Clones missing repositories. Fetches the others and fast-forwards them only when they are clean and on their main branch. Never discards local changes. |
 | `trama status [--quiet]` | Shows branch, local changes, distance from origin, catalog card state and unproven relations for every repository. Offline. `--quiet` prints only problems. |
 | `trama validate` | Checks every catalog card: required fields, evidence that exists in the clone, and proof for every relation. |

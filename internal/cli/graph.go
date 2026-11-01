@@ -75,6 +75,19 @@ func newGraphCmd() *cobra.Command {
 	return cmd
 }
 
+// listenLocal listens on 127.0.0.1. Without an explicit port, a busy port
+// falls back to a free one.
+func listenLocal(port int, explicit bool) (net.Listener, error) {
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if errors.Is(err, syscall.EADDRINUSE) {
+		if explicit {
+			return nil, fmt.Errorf("port %d is in use: choose another with --port", port)
+		}
+		ln, err = net.Listen("tcp", "127.0.0.1:0")
+	}
+	return ln, err
+}
+
 // serveGraph serves the graph page of the workspace at root until the
 // command's context ends or trama gets a signal, which returns
 // runner.ErrInterrupted. Without an explicit port, a busy default port
@@ -84,13 +97,7 @@ func serveGraph(cmd *cobra.Command, root string, port int, explicit, open bool) 
 	if _, err := b.Build(); err != nil {
 		return err
 	}
-	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
-	if errors.Is(err, syscall.EADDRINUSE) {
-		if explicit {
-			return fmt.Errorf("port %d is in use: choose another with --port", port)
-		}
-		ln, err = net.Listen("tcp", "127.0.0.1:0")
-	}
+	ln, err := listenLocal(port, explicit)
 	if err != nil {
 		return err
 	}
