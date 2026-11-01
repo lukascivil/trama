@@ -50,7 +50,8 @@ type Repo struct {
 	Name        string           `json:"name"`
 	Description string           `json:"description,omitempty"`
 	Stack       []string         `json:"stack,omitempty"`
-	URL         string           `json:"url,omitempty"` // https://github.com/<slug>, when on GitHub
+	Role        string           `json:"role,omitempty"` // api, web, app, worker, lib or infra: a hint read from the card
+	URL         string           `json:"url,omitempty"`  // https://github.com/<slug>, when on GitHub
 	Cloned      bool             `json:"cloned"`
 	Card        string           `json:"card"`    // current | stale | missing | unknown
 	Release     *release.Release `json:"release"` // nil: no semver tag, not cloned, or no origin ref
@@ -148,7 +149,7 @@ func (b *Builder) Build() (*Model, error) {
 			Affected:    AffectedBy(r.Name, m.Edges),
 		}
 		if c := cards[r.Name]; c != nil {
-			repo.Description, repo.Stack = c.Description, c.Stack
+			repo.Description, repo.Stack, repo.Role = c.Description, c.Stack, roleOf(c)
 			for _, kind := range []string{"setup", "dev", "test"} {
 				if cmd, ok := c.Run[kind]; ok {
 					repo.Run = append(repo.Run, Command{Kind: kind, Cmd: cmd.Cmd, Port: cmd.Port})
