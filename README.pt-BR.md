@@ -54,7 +54,7 @@ No Claude Code, a partir do workspace:
 
 Depois, o `trama link` resolve as relações e o `trama graph` escreve o `docs/graph.md` e a tabela de repositórios no `AGENTS.md`. O `/trama:map` nunca faz commit: revise e commite `catalog/`, `docs/graph.md` e `AGENTS.md`.
 
-`trama graph --serve` abre no navegador um grafo interativo do workspace: cada repositório com a última release (a maior tag semver) e cada relação com a prova. Clique num repositório para ver quem pode ser afetado se você publicar algo ali: os consumidores diretos, com o `arquivo:linha` que prova; os indiretos, através de outros repositórios; e os possíveis, de relações sem prova. Também tem busca, filtros e foco nos vizinhos de um repositório. Tudo roda na sua máquina: o servidor escuta só em `127.0.0.1` e a página não carrega nada da internet.
+`trama graph --serve` abre no navegador um grafo interativo do workspace: cada repositório com a última release (a maior tag semver) e cada relação com a prova. Clique num repositório para ver quem pode ser afetado se você publicar algo ali: os consumidores diretos, com o `arquivo:linha` que prova; os indiretos, através de outros repositórios; e os possíveis, de relações sem prova. A busca vai além de repositório e id: digite um campo ou uma coluna, como `email`, e ela responde quem tem aquele dado — primeiro os endpoints que já devolvem ou recebem, depois as tabelas que guardam. O painel de um repositório mostra os campos de cada rota que ele serve e as tabelas de que é dono. Também tem filtros e foco nos vizinhos de um repositório. Tudo roda na sua máquina: o servidor escuta só em `127.0.0.1` e a página não carrega nada da internet.
 
 ## Mudanças entre repositórios
 
