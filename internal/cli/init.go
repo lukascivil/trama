@@ -22,16 +22,13 @@ func newInitCmd() *cobra.Command {
 			if dir == "" {
 				dir = "."
 			}
-			created, err := scaffold.Init(scaffold.Options{Dir: dir, Name: name, TramaVersion: version})
+			created, err := scaffold.Init(scaffold.Options{Dir: dir, Name: name})
 			if err != nil {
 				return err
 			}
 			out := cmd.OutOrStdout()
 			for _, p := range created {
 				fmt.Fprintf(out, "created %s\n", p)
-			}
-			if version == "dev" {
-				fmt.Fprintln(out, "note: dev build, so mise.toml does not pin the trama binary")
 			}
 			fmt.Fprintln(out, "Next: trama add <url>, then trama sync")
 			return nil

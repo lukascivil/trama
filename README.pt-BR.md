@@ -27,13 +27,18 @@ No Claude Code:
 
 O plugin coloca um comando `trama` no `PATH` do Claude que roda, via mise, o binário da trama com a mesma versão do plugin.
 
+Só o primeiro workspace precisa dessas duas linhas. Um workspace já criado carrega o marketplace e o plugin no próprio `.claude/settings.json`, então quem clonar abre o Claude Code e já tem a trama, sem instalar nada.
+
+## Atualizar
+
+Atualize o plugin no Claude Code. A atualização é só isso: o binário não é uma segunda coisa para manter em dia, porque quem decide qual binário roda é a versão do plugin, e o mise busca ele no comando seguinte. O `trama version` diz em qual você está.
+
 ## Criar um workspace
 
 Abra o Claude Code numa pasta vazia e rode `/trama:init`. Ele cria:
 
 ```
 workspace.yaml        os repositórios deste workspace
-mise.toml             fixa a versão do binário trama
 AGENTS.md, CLAUDE.md  instruções para os agentes
 .claude/settings.json habilita o plugin trama para quem clonar o workspace
 catalog/ docs/ changes/
@@ -109,7 +114,8 @@ O plugin é servido a partir da branch padrão e roda o binário com a própria 
 1. Coloque a nova versão em `.claude-plugin/plugin.json` e faça o commit.
 2. Faça push da tag `v<versão>`. O workflow de release roda os testes, recusa uma tag diferente da versão do plugin e publica os binários com o GoReleaser.
 3. Quando a release existir, faça push da `main`.
-4. Atualize o pin `github:lukascivil/trama` no `mise.toml` de cada workspace.
+
+Os workspaces não precisam de nada: cada um roda o binário que combina com o plugin de quem o usa.
 
 ## Limitações conhecidas
 

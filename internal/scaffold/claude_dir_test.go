@@ -19,7 +19,7 @@ func TestInitAllowsClaudeDirWithoutSettings(t *testing.T) {
 	if err := os.WriteFile(local, []byte("{}"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := scaffold.Init(scaffold.Options{Dir: dir, TramaVersion: "0.0.1"}); err != nil {
+	if _, err := scaffold.Init(scaffold.Options{Dir: dir}); err != nil {
 		t.Fatal(err)
 	}
 	if b, _ := os.ReadFile(local); string(b) != "{}" {
@@ -39,7 +39,7 @@ func TestInitRefusesExistingClaudeSettings(t *testing.T) {
 	if err := os.WriteFile(settings, []byte("{}"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err := scaffold.Init(scaffold.Options{Dir: dir, TramaVersion: "0.0.1"})
+	_, err := scaffold.Init(scaffold.Options{Dir: dir})
 	if !errors.Is(err, scaffold.ErrNotEmpty) || !strings.Contains(err.Error(), ".claude/settings.json") {
 		t.Fatalf("err = %v", err)
 	}

@@ -28,6 +28,13 @@ func newStatusCmd() *cobra.Command {
 					fmt.Fprintf(out, "- %s\n", line)
 				}
 			}
+			// A leftover pin is tidying, not a problem, so --quiet, which
+			// scripts read, stays silent about it.
+			if !quiet {
+				for _, line := range status.StalePin(ws.Root) {
+					fmt.Fprintf(out, "- %s\n", line)
+				}
+			}
 			return nil
 		},
 	}
