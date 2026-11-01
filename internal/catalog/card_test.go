@@ -50,6 +50,10 @@ run:
   test: { cmd: "go test ./..." }
 identity:
   ports: [{ value: 8080, evidence: ["cmd/api/main.go:10"] }]
+  tables:
+    - value: users
+      columns: [id, email, created_at]
+      evidence: ["migrations/001_users.sql:3-8"]
   hosts: []
   package: null
   topics: []
@@ -57,7 +61,7 @@ provides:
   - kind: http
     id: "GET /hello"
     contract: null
-    shape: { message: string }
+    response: { message: string }
     evidence: ["internal/http/hello.go:14"]
 `
 
@@ -101,8 +105,12 @@ func TestLoadIdentity(t *testing.T) {
 	if len(c.Identity.Ports) != 1 || c.Identity.Ports[0].Value != 8080 || c.Identity.Ports[0].Evidence[0] != "cmd/api/main.go:10" {
 		t.Fatalf("identity = %+v", c.Identity)
 	}
-	if c.Identity.Package != nil || c.Provides[0].Contract != "" || c.Provides[0].Shape["message"] != "string" {
+	if c.Identity.Package != nil || c.Provides[0].Contract != "" || c.Provides[0].Response["message"] != "string" {
 		t.Fatalf("card = %+v", c)
+	}
+	want := catalog.TableFact{Value: "users", Columns: []string{"id", "email", "created_at"}, Evidence: []string{"migrations/001_users.sql:3-8"}}
+	if len(c.Identity.Tables) != 1 || !reflect.DeepEqual(c.Identity.Tables[0], want) {
+		t.Fatalf("tables = %+v", c.Identity.Tables)
 	}
 }
 

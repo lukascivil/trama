@@ -37,7 +37,7 @@ identity:
 provides:
   - kind: http
     id: "GET /hello"
-    shape: { message: string }
+    response: { message: string }
     evidence: ["internal/api/api.go:42"]
 `
 

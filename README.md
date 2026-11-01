@@ -82,6 +82,7 @@ Run them from anywhere inside the workspace (in your own shell, through `mise ex
 | `trama test [repo...]` | Runs `run.test` of each repository, after its setup when needed, and prints `passed` or `failed` for each. |
 | `trama up [repo...]` | Runs `run.dev` of every repository at once, each line prefixed with its name. Refuses to start when a dev port is already in use. Ctrl+C stops every process, children included. |
 | `trama uses <id>` | Lists the repositories that provide or consume an id (e.g. `"GET /hello"`), with their evidence. |
+| `trama data <term>` | Lists what holds a piece of data (e.g. `email`), with their evidence: first the endpoints whose `response` or `request` has a matching field, then the tables whose columns do. The order is the answer — an endpoint that already returns it can be called today; a table means the data exists and its owner has not exposed it yet. |
 | `trama branch <repo> <name>` | Creates a branch from the up-to-date main branch of a repository; refuses a repository with local changes or on another branch. `--main` switches back. |
 | `trama pr <repo> --title T --body-file F [--draft]` | Pushes the current branch and opens a pull request with `gh`. Refuses the main branch. |
 | `trama changes [--no-push]` | Updates every open change record from its pull requests, then commits and pushes the records. `trama changes save <id>` commits and pushes one record. |

@@ -2,7 +2,9 @@ package validate_test
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/lukascivil/trama/internal/catalog"
@@ -49,6 +51,9 @@ func citedLines(t *testing.T, c *catalog.Card) map[string]int {
 	for _, p := range c.Identity.Ports {
 		all = append(all, p.Evidence...)
 	}
+	for _, tb := range c.Identity.Tables {
+		all = append(all, tb.Evidence...)
+	}
 	for _, p := range c.Provides {
 		all = append(all, p.Evidence...)
 	}
@@ -69,4 +74,27 @@ func citedLines(t *testing.T, c *catalog.Card) map[string]int {
 		}
 	}
 	return out
+}
+
+// TestSkillsDoNotNameShape keeps the skills from telling agents to read a
+// card key that no valid card can have: shape was renamed to response.
+func TestSkillsDoNotNameShape(t *testing.T) {
+	docs, err := filepath.Glob("../../skills/*/*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(docs) == 0 {
+		t.Fatal("found no skill docs")
+	}
+	for _, path := range docs {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, line := range strings.Split(string(data), "\n") {
+			if strings.Contains(line, "`shape`") || strings.Contains(line, "shape:") {
+				t.Errorf("%s:%d names the removed key shape: %s", path, i+1, strings.TrimSpace(line))
+			}
+		}
+	}
 }

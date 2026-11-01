@@ -27,15 +27,25 @@ One card per repository, at `catalog/<name>.yaml`. `trama validate` checks every
 | `hosts` | `{value: api.acme.com, evidence: [workspace.yaml]}` | only hosts listed for this repository under `hosts` in `workspace.yaml` |
 | `package` | `{value: "@acme/ui", evidence: [...]}` | the line that declares the package name other repositories import (any registry, including the company's private one, or a Go module path); omit it only for packages marked never to be published, such as `"private": true` |
 | `topics` | `{value: orders.created, evidence: [...]}` | the line that publishes to the topic; a topic this repository publishes also goes in `provides` with `kind: event`, which is what links a consumer to it |
+| `tables` | `{value: users, columns: [id, email], evidence: [...]}` | the line of the migration or schema that creates the table, never one that queries it; `value` may be qualified by its schema, as in `public.users` |
+
+A table is not a relation: it never goes in `provides`, it links nothing, and `trama link` and `trama graph` ignore it. It is here so a repository that needs a piece of data can find who owns it. `columns` is required — a table without its columns only says who owns "users", which whoever is asking already knew. List the columns the table has, not the ones the code reads.
 
 ### provides
 
-`{kind, id, contract, shape, evidence}`
+`{kind, id, contract, request, response, evidence}`
 
 - `kind`: `http`, `event` or `package`.
 - `id`: for `http`, `METHOD /path` with METHOD one of `GET POST PUT PATCH DELETE HEAD OPTIONS`, path parameters as `{name}` (never `:name`) and no query string, e.g. `GET /orders/{id}`. For `event`, the topic. For `package`, the package name.
-- `contract`: optional path to an OpenAPI, GraphQL or proto file.
-- `shape`: optional response fields, e.g. `{message: string}`.
+- `contract`: optional path to an OpenAPI, GraphQL or proto file. It stays a pointer: the card carries the fields so they can be searched, the file carries the full detail.
+- `request`: optional body fields the endpoint accepts. Only for `kind: http`.
+- `response`: optional body fields it returns, e.g. `{message: string}`; for `kind: event`, the payload it publishes. Not for `kind: package`.
+
+`request` and `response` are a flat map of field path to type, never nested YAML:
+
+- A path is dotted names, the way the body nests them: `id`, `customer.email`, `items[].sku`. `[]` marks a segment that is a list of objects you then descend into, so it never ends a path — a list of plain values is the type, `[]string`.
+- A type is one of `string`, `number`, `boolean`, `object`, `[]string`, `[]number`, `[]boolean`, `[]object`, and nothing else. Quote the list ones (`tags: "[]string"`): YAML reads a bare `[` as the start of a list, so an unquoted `[]string` is a syntax error, not a type. Whether a field is required, its format and its allowed values belong in the `contract` file, not here.
+- List the fields the endpoint really returns, not the columns the database has. Leave the map out when you could not read them, instead of guessing.
 
 ### consumes
 
@@ -50,7 +60,7 @@ One card per repository, at `catalog/<name>.yaml`. `trama validate` checks every
   - `topic`: `kind: event` and `id` listed in the provider's `identity.topics`.
   - `declared`: `workspace.yaml` has `links: [{consumer: <this>, provider: <from>, id: <id>}]`.
 - `candidates`: with `from: unknown`, the repositories whose cards provide the same `id`. Leave the key out when there are none.
-- `fields_used`: optional response fields the code reads.
+- `fields_used`: optional response fields the code reads, in the same dotted-path form as the provider's `response`.
 
 ### config
 
@@ -83,10 +93,14 @@ run:
   test: { cmd: "go test ./..." }
 identity:
   ports: [{ value: 8080, evidence: ["cmd/api/main.go:11"] }]
+  tables:
+    - value: greetings
+      columns: [id, message, created_at]
+      evidence: ["migrations/001_greetings.sql:1-6"]
 provides:
   - kind: http
     id: "GET /hello"
-    shape: { message: string }
+    response: { message: string, tags: "[]string" }
     evidence: ["internal/api/api.go:42"]
 ```
 

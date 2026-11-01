@@ -78,14 +78,35 @@ func checkCard(ws *workspace.Workspace, repo workspace.Repo, c *catalog.Card, re
 	for i, tp := range c.Identity.Topics {
 		ev.check(fmt.Sprintf("identity.topics[%d]", i), tp.Evidence, false)
 	}
+	for i, tb := range c.Identity.Tables {
+		where := strings.TrimSpace(fmt.Sprintf("identity.tables[%d] %s", i, tb.Value))
+		if err := catalog.ValidateTable(tb.Value); err != nil {
+			rep.errorf(where, "%s", err)
+		}
+		if len(tb.Columns) == 0 {
+			rep.errorf(where, "no columns: list the table's columns, or the table answers nothing")
+		}
+		for _, col := range tb.Columns {
+			if err := catalog.ValidateColumn(col); err != nil {
+				rep.errorf(where, "%s", err)
+			}
+		}
+		ev.check(where, tb.Evidence, false)
+	}
 	for i, p := range c.Provides {
 		where := strings.TrimSpace(fmt.Sprintf("provides[%d] %s", i, p.ID))
 		checkKindID(rep, where, p.Kind, p.ID)
+		checkBodies(rep, where, p)
 		ev.check(where, p.Evidence, false)
 	}
 	for i, cs := range c.Consumes {
 		where := strings.TrimSpace(fmt.Sprintf("consumes[%d] %s", i, cs.ID))
 		checkKindID(rep, where, cs.Kind, cs.ID)
+		for _, f := range cs.FieldsUsed {
+			if err := catalog.ValidateField(f, ""); err != nil {
+				rep.errorf(where, "fields_used: %s", err)
+			}
+		}
 		ev.check(where, cs.Evidence, false)
 	}
 	for i, cf := range c.Config {
@@ -94,6 +115,35 @@ func checkCard(ws *workspace.Workspace, repo workspace.Repo, c *catalog.Card, re
 			rep.errorf(where, "env is empty")
 		}
 		ev.check(where, cf.Evidence, false)
+	}
+}
+
+// checkBodies validates the request and response field maps of a provide:
+// where each map is allowed, and the path and type of every field in it.
+func checkBodies(rep report, where string, p catalog.Provide) {
+	if p.Shape != nil {
+		rep.errorf(where, "shape was renamed to response")
+	}
+	if p.Request != nil && p.Kind != "http" {
+		rep.errorf(where, "request is only for kind: http")
+	}
+	if p.Response != nil && p.Kind != "http" && p.Kind != "event" {
+		rep.errorf(where, "response is only for kind: http or event")
+	}
+	bodies := []struct {
+		name   string
+		fields map[string]string
+	}{{"request", p.Request}, {"response", p.Response}}
+	for _, body := range bodies {
+		for _, path := range slices.Sorted(maps.Keys(body.fields)) {
+			if strings.TrimSpace(body.fields[path]) == "" {
+				rep.errorf(where, "%s: field %q has no type (use %s)", body.name, path, strings.Join(catalog.FieldTypes, ", "))
+				continue
+			}
+			if err := catalog.ValidateField(path, body.fields[path]); err != nil {
+				rep.errorf(where, "%s: %s", body.name, err)
+			}
+		}
 	}
 }
 
