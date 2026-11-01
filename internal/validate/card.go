@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/lukascivil/trama/internal/catalog"
+	"github.com/lukascivil/trama/internal/schemafind"
 	"github.com/lukascivil/trama/internal/workspace"
 )
 
@@ -90,6 +91,7 @@ func checkCard(ws *workspace.Workspace, repo workspace.Repo, c *catalog.Card, re
 		}
 		ev.check(where, tb.Evidence, false)
 	}
+	checkTablesMapped(rep, ev, c)
 	for i, p := range c.Provides {
 		where := strings.TrimSpace(fmt.Sprintf("provides[%d] %s", i, p.ID))
 		checkKindID(rep, where, p.Kind, p.ID)
@@ -113,6 +115,35 @@ func checkCard(ws *workspace.Workspace, repo workspace.Repo, c *catalog.Card, re
 		}
 		ev.check(where, cf.Evidence, false)
 	}
+}
+
+// checkTablesMapped warns when the clone has files that declare tables and
+// the card lists none. A card that says "tables: []" was mapped by someone
+// who looked and found no table this repository owns, so it is left alone:
+// only a missing key is a question. Nothing is said about a repository that
+// is not cloned, or whose files cannot be listed: that is reported elsewhere,
+// and a warning must never turn into an error here.
+func checkTablesMapped(rep report, ev *evidenceChecker, c *catalog.Card) {
+	if c.Identity.Tables != nil || ev.notCloned {
+		return
+	}
+	found, err := schemafind.Scan(ev.list, ev.load)
+	if err != nil || len(found) == 0 {
+		return
+	}
+	paths := make([]string, 0, 3)
+	for _, f := range found[:min(3, len(found))] {
+		paths = append(paths, f.Path)
+	}
+	sample := strings.Join(paths, ", ")
+	if len(found) > 3 {
+		sample += ", …"
+	}
+	files := "1 schema file"
+	if len(found) > 1 {
+		files = fmt.Sprintf("%d schema files", len(found))
+	}
+	rep.warnf("identity.tables", `%s has %s (%s) but the card lists no tables: map them, or write "tables: []" if this repository owns none`, ev.place, files, sample)
 }
 
 // checkBodies validates the request and response field maps of a provide:

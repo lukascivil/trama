@@ -318,3 +318,50 @@ func TestCardTableOK(t *testing.T) {
 		t.Fatalf("findings = %v", fs)
 	}
 }
+
+func TestCardWarnsSchemaWithoutTables(t *testing.T) {
+	f := demo(t)
+	f.file("trama-demo-api", "db/schema.rb", 3)
+	fs := f.findings()
+	if len(fs) != 1 || !hasWarning(fs, "identity.tables", "db/schema.rb") || !hasWarning(fs, "identity.tables", "tables: []") {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardEmptyTablesSilencesWarning(t *testing.T) {
+	f := demo(t)
+	f.file("trama-demo-api", "db/schema.rb", 3)
+	f.card("trama-demo-api", withTables("  tables: []"))
+	if fs := f.findings(); len(fs) != 0 {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardMappedTablesNoWarning(t *testing.T) {
+	f := demo(t)
+	f.file("trama-demo-api", "db/schema.rb", 3)
+	f.card("trama-demo-api", withTables(`  tables:
+    - value: users
+      columns: [id]
+      evidence: ["db/schema.rb:1"]`))
+	if fs := f.findings(); len(fs) != 0 {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardNoSchemaNoWarning(t *testing.T) {
+	if fs := demo(t).findings(); len(fs) != 0 {
+		t.Fatalf("findings = %v", fs)
+	}
+}
+
+func TestCardNotClonedNoTablesWarning(t *testing.T) {
+	f := fixture(t, demoWorkspace)
+	f.card("trama-demo-api", demoAPI)
+	f.card("trama-demo-web", demoWeb)
+	for _, fd := range f.findings() {
+		if fd.Where == "identity.tables" {
+			t.Fatalf("a repository that is not cloned got a tables warning: %v", fd)
+		}
+	}
+}
