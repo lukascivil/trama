@@ -49,7 +49,7 @@ repos/                os clones (ignorados pelo git)
 
 No Claude Code, a partir do workspace:
 
-- `/trama:add-repo <url>` adiciona um repositório, clona e mapeia.
+- `/trama:add-repo <url>` adiciona um repositório, clona e mapeia. Sem URL (ou com o nome de uma organização), abre uma página na sua máquina que lista os repositórios da organização no GitHub, com filtro e checkboxes, e adiciona, clona e mapeia os que você marcar.
 - `/trama:map <repo>` (ou `--all`) lê um repositório e escreve a ficha dele, `catalog/<repo>.yaml`: stack, como rodar, o que expõe e consome, e a evidência `arquivo:linha` de cada fato. Quem liga um consumidor a um fornecedor é o `trama link`, e a regra é mecânica: a relação vai para o único repositório do workspace que serve aquela rota, publica aquele tópico ou é dono daquele pacote, e rotas casam mesmo quando cada lado escreve o parâmetro de caminho de um jeito. Quando dois repositórios servem a mesma coisa, a relação fica `from: unknown` com os dois como candidatos, para você resolver com um valor de configuração que bate com o host ou a porta de um deles, ou com um vínculo declarado no `workspace.yaml`.
 
 Depois, o `trama link` resolve as relações e o `trama graph` escreve o `docs/graph.md` e a tabela de repositórios no `AGENTS.md`. O `/trama:map` nunca faz commit: revise e commite `catalog/`, `docs/graph.md` e `AGENTS.md`.
@@ -70,6 +70,7 @@ Rode de qualquer lugar dentro do workspace (no seu terminal, via `mise exec -- t
 | Comando | O que faz |
 |---|---|
 | `trama add <url>` | Adiciona um repositório ao `workspace.yaml`. Detecta a branch padrão. Não clona. |
+| `trama add --pick [<org>]` | Abre uma página em `127.0.0.1` que lista os repositórios de uma organização do GitHub, com filtro e checkboxes, e adiciona ao `workspace.yaml` os que você marcar. Imprime os nomes adicionados, um por linha. O token vem do `gh`, de `GH_TOKEN` ou de `GITHUB_TOKEN`, e nunca sai do processo. Não clona. |
 | `trama sync [repo...]` | Clona os repositórios que faltam. Busca os outros e só avança os que estão limpos e na branch principal. Nunca descarta alterações locais. |
 | `trama status [--quiet]` | Mostra branch, alterações locais, distância do remoto, estado da ficha e relações sem prova de cada repositório. Sem rede. `--quiet` mostra só os problemas. |
 | `trama validate` | Confere todas as fichas: campos obrigatórios, evidência que existe no clone e prova de cada relação. |
