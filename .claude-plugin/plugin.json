@@ -1,6 +1,6 @@
 {
   "name": "trama",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "Local meta-harness: map, run and change many repositories as one workspace.",
   "author": { "name": "lukascivil" },
   "homepage": "https://github.com/lukascivil/trama",
