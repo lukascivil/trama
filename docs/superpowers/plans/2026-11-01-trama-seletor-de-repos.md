@@ -34,7 +34,7 @@ Entradas que a spec implica e nenhuma tarefa exercita por si só; cada uma tem s
 
 ---
 
-### Tarefa 1: cliente do GitHub
+### Task 1: cliente do GitHub
 
 **Arquivos:**
 - Criar: `internal/github/github.go`, `internal/github/token.go`
@@ -67,7 +67,7 @@ Entradas que a spec implica e nenhuma tarefa exercita por si só; cada uma tem s
 
 ---
 
-### Tarefa 2: guarda de segurança reaproveitável
+### Task 2: guarda de segurança reaproveitável
 
 **Arquivos:**
 - Modificar: `internal/view/server.go` (a parte de `Handler` que põe cabeçalhos e checa `Host` e `Sec-Fetch-Site`)
@@ -84,7 +84,7 @@ Entradas que a spec implica e nenhuma tarefa exercita por si só; cada uma tem s
 
 ---
 
-### Tarefa 3: estado da escolha e API do seletor
+### Task 3: estado da escolha e API do seletor
 
 **Arquivos:**
 - Criar: `internal/pick/pick.go` (estado e `Apply`), `internal/pick/server.go` (HTTP), `internal/pick/assets/index.html` (provisório, a Tarefa 5 o substitui)
@@ -121,7 +121,7 @@ Entradas que a spec implica e nenhuma tarefa exercita por si só; cada uma tem s
 
 ---
 
-### Tarefa 4: `trama add --pick`
+### Task 4: `trama add --pick`
 
 **Arquivos:**
 - Criar: `internal/cli/pick.go`
@@ -152,7 +152,7 @@ Entradas que a spec implica e nenhuma tarefa exercita por si só; cada uma tem s
 
 ---
 
-### Tarefa 5: a página
+### Task 5: a página
 
 **Arquivos:**
 - Criar: `web/vite.pick.config.ts`, `web/pick.html` (só para o `vite dev`), `web/src/pick/main.tsx`, `web/src/pick/App.tsx`, `web/src/pick/filter.ts`, `web/src/pick/types.ts`, `web/src/pick/strings.ts`, `web/src/pick/pick.css`
@@ -176,7 +176,7 @@ Entradas que a spec implica e nenhuma tarefa exercita por si só; cada uma tem s
 
 ---
 
-### Tarefa 6: skill e documentação
+### Task 6: skill e documentação
 
 **Arquivos:**
 - Modificar: `skills/add-repo/SKILL.md`, `README.md` (linha 52 e a tabela de comandos, linha 72), `README.pt-BR.md` (mesmas linhas)
