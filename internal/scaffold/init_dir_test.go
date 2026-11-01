@@ -10,7 +10,7 @@ import (
 
 func TestInitCreatesMissingDir(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "new", "ws")
-	if _, err := scaffold.Init(scaffold.Options{Dir: dir, TramaVersion: "0.0.1"}); err != nil {
+	if _, err := scaffold.Init(scaffold.Options{Dir: dir}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := workspace.Load(dir); err != nil {
@@ -21,7 +21,7 @@ func TestInitCreatesMissingDir(t *testing.T) {
 func TestInitQuotesSpecialNames(t *testing.T) {
 	for _, name := range []string{"null", "true", "123", "~"} {
 		dir := t.TempDir()
-		if _, err := scaffold.Init(scaffold.Options{Dir: dir, Name: name, TramaVersion: "0.0.1"}); err != nil {
+		if _, err := scaffold.Init(scaffold.Options{Dir: dir, Name: name}); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
 		ws, err := workspace.Load(dir)

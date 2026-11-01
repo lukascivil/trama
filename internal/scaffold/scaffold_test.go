@@ -25,12 +25,12 @@ func read(t *testing.T, path string) string {
 
 func TestInitCreatesLayout(t *testing.T) {
 	dir := t.TempDir()
-	created, err := scaffold.Init(scaffold.Options{Dir: dir, TramaVersion: "0.0.1"})
+	created, err := scaffold.Init(scaffold.Options{Dir: dir})
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := []string{".claude/settings.json", ".gitignore", "AGENTS.md", "CLAUDE.md",
-		"catalog/.gitkeep", "changes/.gitkeep", "docs/.gitkeep", "mise.toml", "workspace.yaml"}
+		"catalog/.gitkeep", "changes/.gitkeep", "docs/.gitkeep", "workspace.yaml"}
 	if !reflect.DeepEqual(created, want) {
 		t.Fatalf("created = %v\nwant      %v", created, want)
 	}
@@ -43,9 +43,6 @@ func TestInitCreatesLayout(t *testing.T) {
 	}
 	if ws.Name != filepath.Base(dir) || len(ws.Repos) != 0 {
 		t.Fatalf("workspace = %+v", ws)
-	}
-	if mise := read(t, filepath.Join(dir, "mise.toml")); !strings.Contains(mise, `"github:lukascivil/trama" = "0.0.1"`) {
-		t.Fatalf("mise.toml does not pin 0.0.1:\n%s", mise)
 	}
 	if gi := read(t, filepath.Join(dir, ".gitignore")); !strings.Contains(gi, "repos/") {
 		t.Fatalf(".gitignore = %q", gi)
@@ -73,7 +70,7 @@ func TestInitCreatesLayout(t *testing.T) {
 
 func TestInitUsesGivenName(t *testing.T) {
 	dir := t.TempDir()
-	if _, err := scaffold.Init(scaffold.Options{Dir: dir, Name: "acme", TramaVersion: "0.0.1"}); err != nil {
+	if _, err := scaffold.Init(scaffold.Options{Dir: dir, Name: "acme"}); err != nil {
 		t.Fatal(err)
 	}
 	ws, err := workspace.Load(dir)
@@ -85,15 +82,15 @@ func TestInitUsesGivenName(t *testing.T) {
 	}
 }
 
-func TestInitDevVersionDoesNotPin(t *testing.T) {
+// The plugin shim runs the binary whose version matches the plugin, so a
+// version in the workspace could only ever disagree with it.
+func TestInitWritesNoMiseFile(t *testing.T) {
 	dir := t.TempDir()
-	if _, err := scaffold.Init(scaffold.Options{Dir: dir, TramaVersion: "dev"}); err != nil {
+	if _, err := scaffold.Init(scaffold.Options{Dir: dir}); err != nil {
 		t.Fatal(err)
 	}
-	for _, line := range strings.Split(read(t, filepath.Join(dir, "mise.toml")), "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), `"github:lukascivil/trama"`) {
-			t.Fatalf("dev build pinned the binary: %q", line)
-		}
+	if _, err := os.Stat(filepath.Join(dir, "mise.toml")); !os.IsNotExist(err) {
+		t.Fatalf("mise.toml was created: %v", err)
 	}
 }
 
@@ -105,7 +102,7 @@ func TestInitAllowsExistingGit(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, ".DS_Store"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := scaffold.Init(scaffold.Options{Dir: dir, TramaVersion: "0.0.1"}); err != nil {
+	if _, err := scaffold.Init(scaffold.Options{Dir: dir}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -115,7 +112,7 @@ func TestInitRefusesNonEmpty(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("hi"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err := scaffold.Init(scaffold.Options{Dir: dir, TramaVersion: "0.0.1"})
+	_, err := scaffold.Init(scaffold.Options{Dir: dir})
 	if !errors.Is(err, scaffold.ErrNotEmpty) || !strings.Contains(err.Error(), "README.md") {
 		t.Fatalf("err = %v, want ErrNotEmpty naming README.md", err)
 	}

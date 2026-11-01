@@ -22,9 +22,7 @@ func run(t *testing.T, args ...string) (string, error) {
 	return out.String(), err
 }
 
-func TestInitCommandPinsBinaryVersion(t *testing.T) {
-	version = "0.0.1"
-	t.Cleanup(func() { version = "dev" })
+func TestInitCommandCreatesWorkspace(t *testing.T) {
 	dir := t.TempDir()
 	out, err := run(t, "init", dir, "--name", "demo")
 	if err != nil {
@@ -34,9 +32,8 @@ func TestInitCommandPinsBinaryVersion(t *testing.T) {
 	if err != nil || ws.Name != "demo" {
 		t.Fatalf("workspace = %+v, %v", ws, err)
 	}
-	mise, _ := os.ReadFile(filepath.Join(dir, "mise.toml"))
-	if !strings.Contains(string(mise), `"github:lukascivil/trama" = "0.0.1"`) {
-		t.Fatalf("mise.toml:\n%s", mise)
+	if _, err := os.Stat(filepath.Join(dir, "mise.toml")); !os.IsNotExist(err) {
+		t.Fatalf("init pinned a binary version in the workspace: %v", err)
 	}
 	if !strings.Contains(out, "workspace.yaml") || !strings.Contains(out, "trama add <url>") {
 		t.Fatalf("output:\n%s", out)

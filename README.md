@@ -27,13 +27,18 @@ In Claude Code:
 
 The plugin puts a `trama` command on Claude's `PATH` that runs, through mise, the trama binary with the same version as the plugin.
 
+Only the first workspace needs those two lines. A workspace already created carries the marketplace and the plugin in its own `.claude/settings.json`, so whoever clones it opens Claude Code and has trama, with nothing to install.
+
+## Update
+
+Update the plugin in Claude Code. That is the whole update: the binary is not a second thing to keep in step, because the plugin's version is what decides which binary runs, and mise fetches it on the next command. `trama version` says which one you are on.
+
 ## Create a workspace
 
 Open Claude Code in an empty directory and run `/trama:init`. It creates:
 
 ```
 workspace.yaml        the repositories in this workspace
-mise.toml             pins the trama binary
 AGENTS.md, CLAUDE.md  instructions for agents
 .claude/settings.json enables the trama plugin for everyone who clones the workspace
 catalog/ docs/ changes/
@@ -109,7 +114,8 @@ The plugin is served from the default branch and runs the binary with its own ve
 1. Set the new version in `.claude-plugin/plugin.json` and commit it.
 2. Push the tag `v<version>`. The release workflow runs the tests, refuses a tag that does not match the plugin version, and publishes the binaries with GoReleaser.
 3. When the release exists, push `main`.
-4. Bump the `github:lukascivil/trama` pin in each workspace's `mise.toml`.
+
+Workspaces need nothing: each one runs the binary that matches the plugin its user has.
 
 ## Known limitations
 

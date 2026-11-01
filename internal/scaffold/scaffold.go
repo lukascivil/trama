@@ -27,9 +27,8 @@ var ErrNotEmpty = errors.New("directory is not empty")
 
 // Options configures Init.
 type Options struct {
-	Dir          string // target directory; created when missing
-	Name         string // workspace name; default filepath.Base(Dir)
-	TramaVersion string // "dev" means: do not pin the binary in mise.toml
+	Dir  string // target directory; created when missing
+	Name string // workspace name; default filepath.Base(Dir)
 }
 
 // allowedEntries may exist in the target directory before Init runs. A
@@ -40,7 +39,6 @@ var allowedEntries = map[string]bool{".git": true, ".DS_Store": true}
 // ending in .tmpl go through text/template; the rest are copied as is.
 var files = map[string]string{
 	"workspace.yaml":        "workspace.yaml.tmpl",
-	"mise.toml":             "mise.toml.tmpl",
 	".gitignore":            "gitignore",
 	"AGENTS.md":             "AGENTS.md.tmpl",
 	"CLAUDE.md":             "CLAUDE.md",
@@ -88,10 +86,7 @@ func Init(opts Options) ([]string, error) {
 	if name == "" {
 		name = filepath.Base(dir)
 	}
-	data := struct {
-		Name, NameYAML, TramaVersion string
-		Pin                          bool
-	}{name, yamlScalar(name), opts.TramaVersion, opts.TramaVersion != "dev"}
+	data := struct{ Name, NameYAML string }{name, yamlScalar(name)}
 
 	rendered := make(map[string][]byte, len(files))
 	for path, src := range files {
